@@ -5,19 +5,23 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
 import searchengine.config.Site;
 import searchengine.model.PageEntity;
 import searchengine.model.SiteEntity;
 import searchengine.repository.PageRepository;
 import searchengine.repository.SiteRepository;
 
+import java.io.IOException;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.RecursiveTask;
 
 import static java.lang.Thread.sleep;
 
-//Todo: нужна аннотация @Component?
 public class SiteMapParser extends RecursiveTask<Integer> {
 
     private String page;
@@ -50,8 +54,8 @@ public class SiteMapParser extends RecursiveTask<Integer> {
             sleep(random());
             Connection.Response response = Jsoup.connect(page)
                     .ignoreHttpErrors(true)
-                    .userAgent("Mozilla/5.0 (Windows; U; WindowsNT 5.1; en-US; rv1.8.1.6) Gecko/20070725 Firefox/2.0.0.6")
-                    .referrer("http://www.google.com") //ToDo: характеристики убррать в application.yaml
+                    .userAgent("Mozilla/5.0 (Windows; U; WindowsNT5.1; en-US; rv1.8.1.6) Gecko/20070725 Firefox/2.0.0.6")
+                    .referrer("http://www.google.com")
                     .execute();
             Document doc = response.parse();
 
@@ -66,7 +70,6 @@ public class SiteMapParser extends RecursiveTask<Integer> {
                     if (!url.startsWith("/") && url.length() > 1) {
                         url = "/" + url;
                     }
-
                     url = siteName + url;
                 }
 
@@ -74,7 +77,7 @@ public class SiteMapParser extends RecursiveTask<Integer> {
                     addChild(url);
                 }
             }
-        } catch (Exception ex) {
+        } catch (InterruptedException | IOException | NullPointerException ex) {
             ex.printStackTrace();
         }
 
