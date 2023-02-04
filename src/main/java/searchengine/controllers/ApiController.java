@@ -12,6 +12,8 @@ import searchengine.dto.statistics.StatisticsResponse;
 import searchengine.services.Storage;
 import searchengine.services.StatisticsService;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 @RestController
 @RequestMapping("/api")
 public class ApiController {
@@ -30,7 +32,7 @@ public class ApiController {
 
         JSONObject response = new JSONObject();
 
-        if (storage.isIndexing()) {
+        if (storage.getIndexing()) {
             response.put("result", false);
             response.put("error", "Индексация уже запущена");
         } else {
@@ -46,16 +48,13 @@ public class ApiController {
 
         JSONObject response = new JSONObject();
 
-        storage.stopIndexing();
-        response.put("result", true);
-
-//        if (storage.isIndexing()) {
-//            storage.stopIndexing();
-//            response.put("result", true);
-//        } else {
-//            response.put("result", false);
-//            response.put("error", "Индексация не запущена");
-//        }
+        if (storage.getIndexing()) {
+            storage.stopIndexing();
+            response.put("result", true);
+        } else {
+            response.put("result", false);
+            response.put("error", "Индексация не запущена");
+        }
 
         return new ResponseEntity<>(response.toString(), HttpStatus.OK);
     }

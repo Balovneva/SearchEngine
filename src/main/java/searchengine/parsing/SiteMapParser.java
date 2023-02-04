@@ -5,17 +5,11 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
-import searchengine.config.Site;
-import searchengine.model.PageEntity;
-import searchengine.model.SiteEntity;
+import searchengine.model.Page;
+import searchengine.model.Site;
 import searchengine.repository.PageRepository;
-import searchengine.repository.SiteRepository;
 
 import java.io.IOException;
-import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.RecursiveTask;
@@ -26,7 +20,7 @@ public class SiteMapParser extends RecursiveTask<Integer> {
 
     private String page;
     private String siteName;
-    private SiteEntity siteEntity;
+    private Site siteEntity;
     private int pageCount; //ToDo: переменная не реализована
 
     public static CopyOnWriteArraySet <String> allLinks = new CopyOnWriteArraySet<>();
@@ -34,7 +28,7 @@ public class SiteMapParser extends RecursiveTask<Integer> {
 
     private List<SiteMapParser> children;
 
-    public SiteMapParser(String page, String siteName, SiteEntity siteEntity) {
+    public SiteMapParser(String page, String siteName, Site siteEntity) {
         children = new ArrayList<>();
         this.page = page;
         this.siteName = siteName;
@@ -42,7 +36,7 @@ public class SiteMapParser extends RecursiveTask<Integer> {
         allLinks.add(page);
     }
 
-    public SiteMapParser(String siteName, SiteEntity siteEntity, PageRepository pageRepository) {
+    public SiteMapParser(String siteName, Site siteEntity, PageRepository pageRepository) {
         this(siteName, siteName, siteEntity);
         allLinks.add(siteName + "/");
         SiteMapParser.pageRepository = pageRepository;
@@ -89,7 +83,7 @@ public class SiteMapParser extends RecursiveTask<Integer> {
     }
 
     private void addPage(Connection.Response response, Document doc) {
-        PageEntity pageEntity = new PageEntity();
+        Page pageEntity = new Page();
         pageEntity.setContent(doc.html());
         pageEntity.setPath(page);
         pageEntity.setCode(response.statusCode());
