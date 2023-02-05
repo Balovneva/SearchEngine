@@ -33,10 +33,6 @@ public class Storage {
 
     public void startIndexing() {
         indexing = true;
-//        clearData();
-//        if (siteRepository.findAll().size() > 0) {
-//            clearData();
-//        }
         addSites();
     }
 
@@ -79,13 +75,16 @@ public class Storage {
 
         forkJoinPools.forEach(ForkJoinPool::shutdown);
 
-        siteRepository.findAll().forEach(site -> {
+        List<Site> sites = siteRepository.findAll();
+
+        sites.forEach(site -> {
             if (site.getStatus().equals("INDEXING")) {
                 indexing = true;
-            } else {
-                indexing = false;
             }
         });
+        if (!sites.contains("INDEXING")) {
+            indexing = false;
+        }
     }
 
     public void stopIndexing() {
