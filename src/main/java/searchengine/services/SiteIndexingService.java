@@ -3,7 +3,7 @@ package searchengine.services;
 import lombok.Getter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import searchengine.parsing.SiteMapParser;
+import searchengine.parsing.SiteParser;
 import searchengine.config.SitesList;
 import searchengine.repository.PageRepository;
 import searchengine.model.Site;
@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
 @Getter
-public class Storage {
+public class SiteIndexingService {
 
     @Autowired
     private SitesList siteList;
@@ -29,11 +29,22 @@ public class Storage {
 
     List<Thread> threads = new ArrayList<>();
     List<ForkJoinPool> forkJoinPools = new ArrayList<>();
-    private Boolean indexing = false;
 
-    public void startIndexing() {
-        indexing = true;
+    public boolean startIndexing() {
+        AtomicBoolean indexing = new AtomicBoolean(false);
+
+        siteRepository.findAll().forEach(site -> {
+            if (site.getStatus().equals("INDEXING")) {
+                indexing.set(true);
+            }
+        });
+
+        if (indexing.get()) {
+            return true;
+        }
+
         addSites();
+        return false;
     }
 
     public void addSites() {
@@ -46,7 +57,6 @@ public class Storage {
                 .stream()
                 .forEach(site -> threads.add(new Thread(() -> {
 
-                    System.out.println(indexing);
                     String rootUrl = site.getUrl();
                     Site siteEntity = new Site();
                     siteEntity.setName(site.getName());
@@ -58,7 +68,7 @@ public class Storage {
                     try {
                         ForkJoinPool forkJoinPool = new ForkJoinPool();
                         forkJoinPools.add(forkJoinPool);
-                        forkJoinPool.invoke(new SiteMapParser(rootUrl, siteEntity, pageRepository));
+                        forkJoinPool.invoke(new SiteParser(rootUrl, siteEntity, pageRepository));
 
                         siteEntity.setStatus("INDEXED");
                         siteEntity.setStatusTime(LocalDateTime.now());
@@ -74,20 +84,22 @@ public class Storage {
         threads.forEach(Thread::start);
 
         forkJoinPools.forEach(ForkJoinPool::shutdown);
-
-        List<Site> sites = siteRepository.findAll();
-
-        sites.forEach(site -> {
-            if (site.getStatus().equals("INDEXING")) {
-                indexing = true;
-            }
-        });
-        if (!sites.contains("INDEXING")) {
-            indexing = false;
-        }
     }
 
-    public void stopIndexing() {
+    public boolean stopIndexing() {
+
+        AtomicBoolean indexing = new AtomicBoolean(false);
+
+        siteRepository.findAll().forEach(site -> {
+            if (site.getStatus().equals("INDEXING")) {
+                indexing.set(true);
+            }
+        });
+
+        if (!indexing.get()) {
+            return true;
+        }
+
         forkJoinPools.forEach(ForkJoinPool::shutdownNow);
         threads.forEach(Thread::interrupt);
 
@@ -100,12 +112,11 @@ public class Storage {
 
         threads.clear();
         forkJoinPools.clear();
-        indexing = false;
+        return false;
     }
 
     public void clearData() {
         pageRepository.deleteAllInBatch();
         siteRepository.deleteAllInBatch();
-        //siteRepository.resetIdOnSite();
     }
 }

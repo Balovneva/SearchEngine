@@ -4,9 +4,10 @@ import lombok.Getter;
 import lombok.Setter;
 
 import javax.persistence.*;
+import javax.persistence.Index;
 
 @Entity
-@Table(name = "pages", indexes = @Index(name = "pathPage", columnList = "path"))
+@Table(name = "page", indexes = @Index(name = "pathPage", columnList = "path"))
 @Getter
 @Setter
 public class Page {
@@ -16,7 +17,7 @@ public class Page {
 
     @OneToOne
     @JoinColumn(name = "site_id")
-    private Site siteEntity;
+    private Site site;
 
     @Column(columnDefinition = "TEXT", nullable = false, unique = true)
     private String path;

@@ -16,7 +16,7 @@ import java.util.concurrent.RecursiveTask;
 
 import static java.lang.Thread.sleep;
 
-public class SiteMapParser extends RecursiveTask<Integer> {
+public class SiteParser extends RecursiveTask<Integer> {
 
     private String page;
     private String siteName;
@@ -26,9 +26,9 @@ public class SiteMapParser extends RecursiveTask<Integer> {
     public static CopyOnWriteArraySet <String> allLinks = new CopyOnWriteArraySet<>();
     private static PageRepository pageRepository;
 
-    private List<SiteMapParser> children;
+    private List<SiteParser> children;
 
-    public SiteMapParser(String page, String siteName, Site siteEntity) {
+    public SiteParser(String page, String siteName, Site siteEntity) {
         children = new ArrayList<>();
         this.page = page;
         this.siteName = siteName;
@@ -36,10 +36,12 @@ public class SiteMapParser extends RecursiveTask<Integer> {
         allLinks.add(page);
     }
 
-    public SiteMapParser(String siteName, Site siteEntity, PageRepository pageRepository) {
+    public SiteParser(String siteName, Site siteEntity, PageRepository pageRepository) {
         this(siteName, siteName, siteEntity);
+        allLinks.clear();
+        allLinks.add(siteName);
         allLinks.add(siteName + "/");
-        SiteMapParser.pageRepository = pageRepository;
+        SiteParser.pageRepository = pageRepository;
     }
 
     @Override
@@ -87,12 +89,12 @@ public class SiteMapParser extends RecursiveTask<Integer> {
         pageEntity.setContent(doc.html());
         pageEntity.setPath(page);
         pageEntity.setCode(response.statusCode());
-        pageEntity.setSiteEntity(siteEntity);
+        pageEntity.setSite(siteEntity);
         pageRepository.save(pageEntity);
     }
 
     private void addChild(String url) {
-        SiteMapParser child = new SiteMapParser(url, siteName, siteEntity);
+        SiteParser child = new SiteParser(url, siteName, siteEntity);
         children.add(child);
         child.fork();
     }

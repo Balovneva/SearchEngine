@@ -4,12 +4,24 @@ import lombok.Getter;
 import lombok.Setter;
 import org.springframework.stereotype.Repository;
 
-import javax.persistence.Entity;
-import javax.persistence.Table;
+import javax.persistence.*;
 
-//@Entity
-//@Table
-//@Getter
-//@Setter
+@Entity
+@Table(name = "lemma")
+@Getter
+@Setter
 public class Lemma {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private int id;
+
+    @ManyToOne
+    @JoinColumn(name = "site_id")
+    private Site site;
+
+    @Column(nullable = false)
+    private String lemma;
+
+    @Column(nullable = false)
+    private int frequency;
 }

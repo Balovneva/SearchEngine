@@ -1,25 +1,23 @@
 package searchengine.controllers;
 
-import com.fasterxml.jackson.databind.util.JSONPObject;
 import org.json.simple.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import searchengine.dto.statistics.StatisticsResponse;
-import searchengine.services.Storage;
+import searchengine.services.SiteIndexingService;
 import searchengine.services.StatisticsService;
-
-import java.util.concurrent.atomic.AtomicBoolean;
 
 @RestController
 @RequestMapping("/api")
 public class ApiController {
 
     @Autowired
-    private Storage storage;
+    private SiteIndexingService storage;
 
     private final StatisticsService statisticsService;
 
@@ -30,14 +28,15 @@ public class ApiController {
     @GetMapping("/startIndexing")
     public ResponseEntity<String> startIndexing() {
 
+        boolean indexing = storage.startIndexing();
+
         JSONObject response = new JSONObject();
 
-        if (storage.getIndexing()) {
+        if (indexing) {
             response.put("result", false);
             response.put("error", "Индексация уже запущена");
         } else {
             response.put("result", true);
-            storage.startIndexing();
         }
 
         return new ResponseEntity<>(response.toString(), HttpStatus.OK);
@@ -46,17 +45,23 @@ public class ApiController {
     @GetMapping("/stopIndexing")
     public ResponseEntity<String> stopIndexing() {
 
+        boolean stopIndexing = storage.stopIndexing();
+
         JSONObject response = new JSONObject();
 
-        if (storage.getIndexing()) {
-            storage.stopIndexing();
-            response.put("result", true);
-        } else {
+        if (stopIndexing) {
             response.put("result", false);
             response.put("error", "Индексация не запущена");
+        } else {
+            response.put("result", true);
         }
 
         return new ResponseEntity<>(response.toString(), HttpStatus.OK);
+    }
+
+    @PostMapping("/indexPage")
+    public ResponseEntity<String> indexPage() {
+        
     }
 
     @GetMapping("/statistics")
