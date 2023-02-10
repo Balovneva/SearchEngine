@@ -57,18 +57,13 @@ public class SiteIndexingService {
                 .stream()
                 .forEach(site -> threads.add(new Thread(() -> {
 
-                    String rootUrl = site.getUrl();
-                    Site siteEntity = new Site();
-                    siteEntity.setName(site.getName());
-                    siteEntity.setStatus("INDEXING");
-                    siteEntity.setStatusTime(LocalDateTime.now());
-                    siteEntity.setUrl(rootUrl);
-                    siteRepository.save(siteEntity);
+                    Site siteEntity = addSiteInRepository(site);
+                    SiteParser siteParser = new SiteParser(siteEntity.getUrl(), siteEntity, pageRepository);
 
                     try {
                         ForkJoinPool forkJoinPool = new ForkJoinPool();
                         forkJoinPools.add(forkJoinPool);
-                        forkJoinPool.invoke(new SiteParser(rootUrl, siteEntity, pageRepository));
+                        forkJoinPool.invoke(siteParser);
 
                         siteEntity.setStatus("INDEXED");
                         siteEntity.setStatusTime(LocalDateTime.now());
@@ -80,6 +75,8 @@ public class SiteIndexingService {
                         siteEntity.setStatusTime(LocalDateTime.now());
                         siteRepository.save(siteEntity);
                     }
+
+                    siteParser.clearListOfLinks();
                 })));
         threads.forEach(Thread::start);
 
@@ -113,6 +110,50 @@ public class SiteIndexingService {
         threads.clear();
         forkJoinPools.clear();
         return false;
+    }
+
+    public boolean indexPage(String url) {
+
+        AtomicBoolean addPage = new AtomicBoolean(false);
+
+        siteList.getSites().forEach(site ->
+        {
+            if (url.contains(site.getUrl()) && siteRepository.findAll().isEmpty()) {
+                Site siteEntity = addSiteInRepository(site);
+
+                SiteParser siteParser = new SiteParser(url, siteEntity, pageRepository);
+                siteParser.addAdditionalPage();
+                siteEntity.setStatus("INDEXED");
+                siteEntity.setStatusTime(LocalDateTime.now());
+
+                addPage.set(true);
+
+            } else if (url.contains(site.getUrl())) {
+                Site siteEntity = siteRepository.findByUrl(site.getUrl());
+                SiteParser siteParser = new SiteParser(url, siteEntity, pageRepository);
+                siteParser.addAdditionalPage();
+                siteEntity.setStatus("INDEXED");
+                siteEntity.setStatusTime(LocalDateTime.now());
+                addPage.set(true);
+            }
+        });
+
+        if (addPage.get()) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    public Site addSiteInRepository(searchengine.config.Site site) {
+        String rootUrl = site.getUrl();
+        Site siteEntity = new Site();
+        siteEntity.setName(site.getName());
+        siteEntity.setStatus("INDEXING");
+        siteEntity.setStatusTime(LocalDateTime.now());
+        siteEntity.setUrl(rootUrl);
+        siteRepository.save(siteEntity);
+        return siteEntity;
     }
 
     public void clearData() {

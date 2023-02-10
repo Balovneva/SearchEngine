@@ -23,7 +23,7 @@ public class SiteParser extends RecursiveTask<Integer> {
     private Site siteEntity;
     private int pageCount; //ToDo: переменная не реализована
 
-    public static CopyOnWriteArraySet <String> allLinks = new CopyOnWriteArraySet<>();
+    public static CopyOnWriteArraySet <String> allLinks = new CopyOnWriteArraySet<>(); //Todo: Зачем тут защита потока?
     private static PageRepository pageRepository;
 
     private List<SiteParser> children;
@@ -37,10 +37,9 @@ public class SiteParser extends RecursiveTask<Integer> {
     }
 
     public SiteParser(String siteName, Site siteEntity, PageRepository pageRepository) {
-        this(siteName, siteName, siteEntity);
-        allLinks.clear();
-        allLinks.add(siteName);
-        allLinks.add(siteName + "/");
+        this(siteName, siteEntity.getUrl(), siteEntity);
+        allLinks.add(siteEntity.getUrl());
+        allLinks.add(siteEntity.getUrl() + "/");
         SiteParser.pageRepository = pageRepository;
     }
 
@@ -84,8 +83,27 @@ public class SiteParser extends RecursiveTask<Integer> {
         return pageCount;
     }
 
+    public void addAdditionalPage() {
+        try {
+            Connection.Response response = Jsoup.connect(page)
+                    .ignoreHttpErrors(true)
+                    .userAgent("Mozilla/5.0 (Windows; U; WindowsNT5.1; en-US; rv1.8.1.6) Gecko/20070725 Firefox/2.0.0.6")
+                    .referrer("http://www.google.com") //ToDO: Создать конфиг
+                    .execute();
+            Document doc = response.parse();
+            addPage(response, doc);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     private void addPage(Connection.Response response, Document doc) {
-        Page pageEntity = new Page();
+
+        Page pageEntity = pageRepository.findByPath(page);
+        if (pageEntity == null) {
+            pageEntity = new Page();
+        }
+
         pageEntity.setContent(doc.html());
         pageEntity.setPath(page);
         pageEntity.setCode(response.statusCode());
@@ -108,6 +126,10 @@ public class SiteParser extends RecursiveTask<Integer> {
 
     private int random() {
         return (int) Math.round(Math.random() * 51 + 100);
+    }
+
+    public void clearListOfLinks() {
+        allLinks.clear();
     }
 }
 

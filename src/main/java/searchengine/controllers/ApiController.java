@@ -4,10 +4,7 @@ import org.json.simple.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import searchengine.dto.statistics.StatisticsResponse;
 import searchengine.services.SiteIndexingService;
 import searchengine.services.StatisticsService;
@@ -17,7 +14,7 @@ import searchengine.services.StatisticsService;
 public class ApiController {
 
     @Autowired
-    private SiteIndexingService storage;
+    private SiteIndexingService siteIndexingService;
 
     private final StatisticsService statisticsService;
 
@@ -28,7 +25,7 @@ public class ApiController {
     @GetMapping("/startIndexing")
     public ResponseEntity<String> startIndexing() {
 
-        boolean indexing = storage.startIndexing();
+        boolean indexing = siteIndexingService.startIndexing();
 
         JSONObject response = new JSONObject();
 
@@ -45,7 +42,7 @@ public class ApiController {
     @GetMapping("/stopIndexing")
     public ResponseEntity<String> stopIndexing() {
 
-        boolean stopIndexing = storage.stopIndexing();
+        boolean stopIndexing = siteIndexingService.stopIndexing();
 
         JSONObject response = new JSONObject();
 
@@ -60,8 +57,18 @@ public class ApiController {
     }
 
     @PostMapping("/indexPage")
-    public ResponseEntity<String> indexPage() {
-        
+    public ResponseEntity<String> indexPage(@RequestParam String url) {
+        boolean addPage = siteIndexingService.indexPage(url);
+        JSONObject response = new JSONObject();
+
+        if (addPage) {
+            response.put("result", true);
+        } else {
+            response.put("result", false);
+            response.put("error", "Данная страница находится за пределами сайтов, указанных в конфигурационном файле");
+        }
+
+        return new ResponseEntity<>(response.toString(), HttpStatus.OK);
     }
 
     @GetMapping("/statistics")

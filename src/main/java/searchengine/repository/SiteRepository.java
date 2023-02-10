@@ -14,7 +14,4 @@ public interface SiteRepository extends JpaRepository<Site, Integer> {
 
     Site findByUrl(String url);
 
-//    @Modifying(clearAutomatically = true, flushAutomatically = true)
-//    @Query(value = "ALTER TABLE site AUTO_INCREMENT = 0", nativeQuery = true)
-//    void resetIdOnSite();
 }
