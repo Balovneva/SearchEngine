@@ -5,8 +5,11 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import searchengine.lemmatizer.LemmaFinder;
+import searchengine.model.Lemma;
 import searchengine.model.Page;
 import searchengine.model.Site;
+import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
 
 import java.io.IOException;
@@ -25,6 +28,7 @@ public class SiteParser extends RecursiveTask<Integer> {
 
     public static CopyOnWriteArraySet <String> allLinks = new CopyOnWriteArraySet<>(); //Todo: Зачем тут защита потока?
     private static PageRepository pageRepository;
+    private static LemmaRepository lemmaRepository;
 
     private List<SiteParser> children;
 
@@ -36,11 +40,12 @@ public class SiteParser extends RecursiveTask<Integer> {
         allLinks.add(page);
     }
 
-    public SiteParser(String siteName, Site siteEntity, PageRepository pageRepository) {
+    public SiteParser(String siteName, Site siteEntity, PageRepository pageRepository, LemmaRepository lemmaRepository) {
         this(siteName, siteEntity.getUrl(), siteEntity);
         allLinks.add(siteEntity.getUrl());
         allLinks.add(siteEntity.getUrl() + "/");
         SiteParser.pageRepository = pageRepository;
+        SiteParser.lemmaRepository = lemmaRepository;
     }
 
     @Override
@@ -109,6 +114,11 @@ public class SiteParser extends RecursiveTask<Integer> {
         pageEntity.setCode(response.statusCode());
         pageEntity.setSite(siteEntity);
         pageRepository.save(pageEntity);
+
+        if (response.statusCode() < 400) {
+            LemmaFinder lemmaFinder = new LemmaFinder(pageEntity, siteEntity, lemmaRepository);
+            lemmaFinder.collectLemmas();
+        }
     }
 
     private void addChild(String url) {

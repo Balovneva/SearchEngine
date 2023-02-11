@@ -1,90 +1,101 @@
 package searchengine.lemmatizer;
 
-import lombok.extern.slf4j.Slf4j;
+import lombok.Setter;
 import org.apache.lucene.morphology.LuceneMorphology;
 import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Component;
+import searchengine.model.Lemma;
+import searchengine.model.Page;
+import searchengine.model.Site;
+import searchengine.repository.LemmaRepository;
+import searchengine.services.SiteIndexingService;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.List;
+import java.util.Locale;
+import java.util.concurrent.ConcurrentHashMap;
 
-@Slf4j
 public class LemmaFinder {
-    private final LuceneMorphology luceneMorphology;
-    private static final String WORD_TYPE_REGEX = "\\W\\w&&[^а-яА-Я\\s]";
-    private static final String[] particlesNames = new String[]{"МЕЖД", "ПРЕДЛ", "СОЮЗ"};
 
-    public static LemmaFinder getInstance() throws IOException {
-        LuceneMorphology morphology= new RussianLuceneMorphology();
-        return new LemmaFinder(morphology);
+    private static LuceneMorphology luceneMorphology;
+    private static final String[] particlesNames = new String[]{"МЕЖД", "ПРЕДЛ", "СОЮЗ", "МС-П", " МС "};
+    private static LemmaRepository lemmaRepository;
+    private final Page page;
+    private final Site site;
+
+    public LemmaFinder(Page page, Site site, LemmaRepository lemmaRepository) {
+
+        this.page = page;
+        this.site = site;
+        LemmaFinder.lemmaRepository = lemmaRepository;
+
+
+        try {
+            luceneMorphology = new RussianLuceneMorphology();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
+//        String text = " ";
+//
+//        collectLemmas(text).entrySet().forEach(lemma -> {
+//            System.out.println(lemma.getKey() + " - " + lemma.getValue());
+//        });
+
+//        //ToDo:  тестирование форм слов
+//        String test = "ой";
+//
+//        List<String> testArray = luceneMorphology.getMorphInfo(test);
+//
+//        System.out.println(testArray.get(0));
     }
 
-    private LemmaFinder(LuceneMorphology luceneMorphology) {
-        this.luceneMorphology = luceneMorphology;
-    }
+    public void collectLemmas() {
 
-    private LemmaFinder(){
-        throw new RuntimeException("Disallow construct");
-    }
-
-    /**
-     * Метод разделяет текст на слова, находит все леммы и считает их количество.
-     *
-     * @param text текст из которого будут выбираться леммы
-     * @return ключ является леммой, а значение количеством найденных лемм
-     */
-    public Map<String, Integer> collectLemmas(String text) {
-        String[] words = arrayContainsRussianWords(text);
-        HashMap<String, Integer> lemmas = new HashMap<>();
+        String[] words = arrayContainsRussianWords(page.getContent());
+        ConcurrentHashMap<String, Integer> lemmas = new ConcurrentHashMap<>();
 
         for (String word : words) {
+
             if (word.isBlank()) {
                 continue;
             }
 
             List<String> wordBaseForms = luceneMorphology.getMorphInfo(word);
-            if (anyWordBaseBelongToParticle(wordBaseForms)) {
+            if(anyWordBaseBeforeToParticle(wordBaseForms)) {
                 continue;
             }
 
             List<String> normalForms = luceneMorphology.getNormalForms(word);
+
             if (normalForms.isEmpty()) {
                 continue;
             }
 
             String normalWord = normalForms.get(0);
 
-            if (lemmas.containsKey(normalWord)) {
-                lemmas.put(normalWord, lemmas.get(normalWord) + 1);
-            } else {
-                lemmas.put(normalWord, 1);
-            }
-        }
+            //String normalForm = wordBaseForms.get(0);
 
-        return lemmas;
+            Lemma test = lemmaRepository.findByLemma(normalWord);
+            if (test != null) {
+                int frequency = test.getFrequency();
+                test.setFrequency(frequency + 1);
+                continue;
+            }
+            Lemma lemma = new Lemma();
+            lemma.setLemma(normalWord);
+            lemma.setSite(page.getSite());
+            lemma.setFrequency(1);
+            lemmaRepository.save(lemma);
+        }
     }
 
+    private boolean anyWordBaseBeforeToParticle(List<String> wordBaseForms) {
 
-    /**
-     * @param text текст из которого собираем все леммы
-     * @return набор уникальных лемм найденных в тексте
-     */
-    public Set<String> getLemmaSet(String text) {
-        String[] textArray = arrayContainsRussianWords(text);
-        Set<String> lemmaSet = new HashSet<>();
-        for (String word : textArray) {
-            if (!word.isEmpty() && isCorrectWordForm(word)) {
-                List<String> wordBaseForms = luceneMorphology.getMorphInfo(word);
-                if (anyWordBaseBelongToParticle(wordBaseForms)) {
-                    continue;
-                }
-                lemmaSet.addAll(luceneMorphology.getNormalForms(word));
-            }
-        }
-        return lemmaSet;
-    }
-
-    private boolean anyWordBaseBelongToParticle(List<String> wordBaseForms) {
-        return wordBaseForms.stream().anyMatch(this::hasParticleProperty);
+        return hasParticleProperty(wordBaseForms.get(0));
     }
 
     private boolean hasParticleProperty(String wordBase) {
@@ -98,18 +109,8 @@ public class LemmaFinder {
 
     private String[] arrayContainsRussianWords(String text) {
         return text.toLowerCase(Locale.ROOT)
-                .replaceAll("([^а-я\\s])", " ")
+                .replaceAll("[^а-я]+", " ")
                 .trim()
                 .split("\\s+");
-    }
-
-    private boolean isCorrectWordForm(String word) {
-        List<String> wordInfo = luceneMorphology.getMorphInfo(word);
-        for (String morphInfo : wordInfo) {
-            if (morphInfo.matches(WORD_TYPE_REGEX)) {
-                return false;
-            }
-        }
-        return true;
     }
 }

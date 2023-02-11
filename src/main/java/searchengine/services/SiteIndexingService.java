@@ -3,8 +3,10 @@ package searchengine.services;
 import lombok.Getter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import searchengine.lemmatizer.LemmaFinder;
 import searchengine.parsing.SiteParser;
 import searchengine.config.SitesList;
+import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
 import searchengine.model.Site;
 import searchengine.repository.SiteRepository;
@@ -26,6 +28,8 @@ public class SiteIndexingService {
     SiteRepository siteRepository;
     @Autowired
     PageRepository pageRepository;
+    @Autowired
+    LemmaRepository lemmaRepository;
 
     List<Thread> threads = new ArrayList<>();
     List<ForkJoinPool> forkJoinPools = new ArrayList<>();
@@ -58,7 +62,7 @@ public class SiteIndexingService {
                 .forEach(site -> threads.add(new Thread(() -> {
 
                     Site siteEntity = addSiteInRepository(site);
-                    SiteParser siteParser = new SiteParser(siteEntity.getUrl(), siteEntity, pageRepository);
+                    SiteParser siteParser = new SiteParser(siteEntity.getUrl(), siteEntity, pageRepository, lemmaRepository);
 
                     try {
                         ForkJoinPool forkJoinPool = new ForkJoinPool();
@@ -121,19 +125,20 @@ public class SiteIndexingService {
             if (url.contains(site.getUrl()) && siteRepository.findAll().isEmpty()) {
                 Site siteEntity = addSiteInRepository(site);
 
-                SiteParser siteParser = new SiteParser(url, siteEntity, pageRepository);
+                SiteParser siteParser = new SiteParser(url, siteEntity, pageRepository, lemmaRepository);
                 siteParser.addAdditionalPage();
                 siteEntity.setStatus("INDEXED");
                 siteEntity.setStatusTime(LocalDateTime.now());
-
+                siteRepository.save(siteEntity);
                 addPage.set(true);
 
             } else if (url.contains(site.getUrl())) {
                 Site siteEntity = siteRepository.findByUrl(site.getUrl());
-                SiteParser siteParser = new SiteParser(url, siteEntity, pageRepository);
+                SiteParser siteParser = new SiteParser(url, siteEntity, pageRepository, lemmaRepository);
                 siteParser.addAdditionalPage();
                 siteEntity.setStatus("INDEXED");
                 siteEntity.setStatusTime(LocalDateTime.now());
+                siteRepository.save(siteEntity);
                 addPage.set(true);
             }
         });
@@ -157,6 +162,7 @@ public class SiteIndexingService {
     }
 
     public void clearData() {
+        lemmaRepository.deleteAllInBatch();
         pageRepository.deleteAllInBatch();
         siteRepository.deleteAllInBatch();
     }
