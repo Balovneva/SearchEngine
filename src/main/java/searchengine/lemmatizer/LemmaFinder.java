@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import searchengine.model.Lemma;
 import searchengine.model.Page;
 import searchengine.model.Site;
+import searchengine.repository.IndexRepository;
 import searchengine.repository.LemmaRepository;
 import searchengine.services.SiteIndexingService;
 
@@ -22,15 +23,17 @@ public class LemmaFinder {
     private static LuceneMorphology luceneMorphology;
     private static final String[] particlesNames = new String[]{"МЕЖД", "ПРЕДЛ", "СОЮЗ", "МС-П", " МС "};
     private static LemmaRepository lemmaRepository;
+    private static IndexRepository indexRepository;
     private final Page page;
     private final Site site;
 
-    public LemmaFinder(Page page, Site site, LemmaRepository lemmaRepository) {
+    //ToDo: передавать в коструруктор сайт не нужно ?
+    public LemmaFinder(Page page, Site site, LemmaRepository lemmaRepository, IndexRepository indexRepository) {
 
         this.page = page;
         this.site = site;
         LemmaFinder.lemmaRepository = lemmaRepository;
-
+        LemmaFinder.indexRepository = indexRepository;
 
         try {
             luceneMorphology = new RussianLuceneMorphology();
@@ -79,18 +82,22 @@ public class LemmaFinder {
 
             //String normalForm = wordBaseForms.get(0);
 
-            Lemma test = lemmaRepository.findByLemma(normalWord);
-            if (test != null) {
-                int frequency = test.getFrequency();
-                test.setFrequency(frequency + 1);
+            Lemma lemma = lemmaRepository.findByLemmaAndSite(normalWord, page.getSite());
+            if (lemma != null) {
+//                int frequency = lemma.getFrequency();
+//                lemma.setFrequency(frequency + 1);
                 continue;
             }
-            Lemma lemma = new Lemma();
-            lemma.setLemma(normalWord);
-            lemma.setSite(page.getSite());
-            lemma.setFrequency(1);
-            lemmaRepository.save(lemma);
+            addNewLemma(normalWord);
         }
+    }
+
+    private void addNewLemma(String normalWord) {
+        Lemma lemma = new Lemma();
+        lemma.setLemma(normalWord);
+        lemma.setSite(page.getSite());
+        lemma.setFrequency(1);
+        lemmaRepository.save(lemma);
     }
 
     private boolean anyWordBaseBeforeToParticle(List<String> wordBaseForms) {

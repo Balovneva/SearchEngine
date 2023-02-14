@@ -2,7 +2,8 @@ package searchengine.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import searchengine.model.Lemma;
+import searchengine.model.Site;
 
 public interface LemmaRepository extends JpaRepository<Lemma, Integer> {
-    Lemma findByLemma(String lemma);
+    Lemma findByLemmaAndSite(String lemma, Site site);
 }

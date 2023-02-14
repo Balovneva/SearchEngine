@@ -3,9 +3,9 @@ package searchengine.services;
 import lombok.Getter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import searchengine.lemmatizer.LemmaFinder;
 import searchengine.parsing.SiteParser;
 import searchengine.config.SitesList;
+import searchengine.repository.IndexRepository;
 import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
 import searchengine.model.Site;
@@ -23,13 +23,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class SiteIndexingService {
 
     @Autowired
-    private SitesList siteList;
+    private SitesList sitesList;
     @Autowired
     SiteRepository siteRepository;
     @Autowired
     PageRepository pageRepository;
     @Autowired
-    LemmaRepository lemmaRepository;
+    LemmaRepository lemmaRepository; //ToDo: переброска репозиториев через класс-парсер, не оч. мб лучше?
+    @Autowired
+    IndexRepository indexRepository;
 
     List<Thread> threads = new ArrayList<>();
     List<ForkJoinPool> forkJoinPools = new ArrayList<>();
@@ -57,12 +59,14 @@ public class SiteIndexingService {
 
         clearData();
 
-        siteList.getSites()
+        sitesList.getSites()
                 .stream()
                 .forEach(site -> threads.add(new Thread(() -> {
 
                     Site siteEntity = addSiteInRepository(site);
-                    SiteParser siteParser = new SiteParser(siteEntity.getUrl(), siteEntity, pageRepository, lemmaRepository);
+                    SiteParser siteParser = new SiteParser(siteEntity.getUrl(),
+                            siteEntity, sitesList, pageRepository,
+                            lemmaRepository, indexRepository);
 
                     try {
                         ForkJoinPool forkJoinPool = new ForkJoinPool();
@@ -120,21 +124,27 @@ public class SiteIndexingService {
 
         AtomicBoolean addPage = new AtomicBoolean(false);
 
-        siteList.getSites().forEach(site ->
+        sitesList.getSites().forEach(site ->
         {
-            if (url.contains(site.getUrl()) && siteRepository.findAll().isEmpty()) {
+            if (url.contains(site.getUrl()) && siteRepository.findByUrl(site.getUrl()) == null) {
                 Site siteEntity = addSiteInRepository(site);
 
-                SiteParser siteParser = new SiteParser(url, siteEntity, pageRepository, lemmaRepository);
+                SiteParser siteParser = new SiteParser(url, siteEntity,
+                        sitesList, pageRepository,
+                        lemmaRepository, indexRepository);
                 siteParser.addAdditionalPage();
                 siteEntity.setStatus("INDEXED");
                 siteEntity.setStatusTime(LocalDateTime.now());
                 siteRepository.save(siteEntity);
                 addPage.set(true);
 
-            } else if (url.contains(site.getUrl())) {
+            }
+            else if (url.contains(site.getUrl())) {
                 Site siteEntity = siteRepository.findByUrl(site.getUrl());
-                SiteParser siteParser = new SiteParser(url, siteEntity, pageRepository, lemmaRepository);
+                SiteParser siteParser = new SiteParser(url, siteEntity,
+                        sitesList, pageRepository,
+                        lemmaRepository, indexRepository);
+                siteEntity.setStatus("INDEXING");
                 siteParser.addAdditionalPage();
                 siteEntity.setStatus("INDEXED");
                 siteEntity.setStatusTime(LocalDateTime.now());

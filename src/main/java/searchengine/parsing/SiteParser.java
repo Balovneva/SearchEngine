@@ -5,10 +5,12 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import searchengine.config.SitesList;
 import searchengine.lemmatizer.LemmaFinder;
 import searchengine.model.Lemma;
 import searchengine.model.Page;
 import searchengine.model.Site;
+import searchengine.repository.IndexRepository;
 import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
 
@@ -29,6 +31,8 @@ public class SiteParser extends RecursiveTask<Integer> {
     public static CopyOnWriteArraySet <String> allLinks = new CopyOnWriteArraySet<>(); //Todo: Зачем тут защита потока?
     private static PageRepository pageRepository;
     private static LemmaRepository lemmaRepository;
+    private static IndexRepository indexRepository;
+    private static SitesList sitesList;
 
     private List<SiteParser> children;
 
@@ -40,12 +44,16 @@ public class SiteParser extends RecursiveTask<Integer> {
         allLinks.add(page);
     }
 
-    public SiteParser(String siteName, Site siteEntity, PageRepository pageRepository, LemmaRepository lemmaRepository) {
+    public SiteParser(String siteName, Site siteEntity, SitesList sitesList,
+                      PageRepository pageRepository, LemmaRepository lemmaRepository,
+                      IndexRepository indexRepository) {
         this(siteName, siteEntity.getUrl(), siteEntity);
         allLinks.add(siteEntity.getUrl());
         allLinks.add(siteEntity.getUrl() + "/");
+        SiteParser.sitesList = sitesList;
         SiteParser.pageRepository = pageRepository;
         SiteParser.lemmaRepository = lemmaRepository;
+        SiteParser.indexRepository = indexRepository;
     }
 
     @Override
@@ -54,8 +62,8 @@ public class SiteParser extends RecursiveTask<Integer> {
             sleep(random());
             Connection.Response response = Jsoup.connect(page)
                     .ignoreHttpErrors(true)
-                    .userAgent("Mozilla/5.0 (Windows; U; WindowsNT5.1; en-US; rv1.8.1.6) Gecko/20070725 Firefox/2.0.0.6")
-                    .referrer("http://www.google.com")
+                    .userAgent(sitesList.getUserAgent())
+                    .referrer(sitesList.getReferrer())
                     .execute();
             Document doc = response.parse();
 
@@ -92,8 +100,8 @@ public class SiteParser extends RecursiveTask<Integer> {
         try {
             Connection.Response response = Jsoup.connect(page)
                     .ignoreHttpErrors(true)
-                    .userAgent("Mozilla/5.0 (Windows; U; WindowsNT5.1; en-US; rv1.8.1.6) Gecko/20070725 Firefox/2.0.0.6")
-                    .referrer("http://www.google.com") //ToDO: Создать конфиг
+                    .userAgent(sitesList.getUserAgent())
+                    .referrer(sitesList.getReferrer())
                     .execute();
             Document doc = response.parse();
             addPage(response, doc);
@@ -116,7 +124,7 @@ public class SiteParser extends RecursiveTask<Integer> {
         pageRepository.save(pageEntity);
 
         if (response.statusCode() < 400) {
-            LemmaFinder lemmaFinder = new LemmaFinder(pageEntity, siteEntity, lemmaRepository);
+            LemmaFinder lemmaFinder = new LemmaFinder(pageEntity, siteEntity, lemmaRepository, indexRepository);
             lemmaFinder.collectLemmas();
         }
     }
