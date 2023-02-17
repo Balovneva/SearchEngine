@@ -172,6 +172,7 @@ public class SiteIndexingService {
     }
 
     public void clearData() {
+        indexRepository.deleteAllInBatch();
         lemmaRepository.deleteAllInBatch();
         pageRepository.deleteAllInBatch();
         siteRepository.deleteAllInBatch();

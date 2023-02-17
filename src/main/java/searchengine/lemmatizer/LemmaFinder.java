@@ -6,6 +6,7 @@ import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
+import searchengine.model.Index;
 import searchengine.model.Lemma;
 import searchengine.model.Page;
 import searchengine.model.Site;
@@ -83,10 +84,21 @@ public class LemmaFinder {
             //String normalForm = wordBaseForms.get(0);
 
             Lemma lemma = lemmaRepository.findByLemmaAndSite(normalWord, page.getSite());
+            Index index = indexRepository.findByPageAndLemma(page, lemma);
+
             if (lemma != null) {
-//                int frequency = lemma.getFrequency();
-//                lemma.setFrequency(frequency + 1);
-                continue;
+                if (index != null) {
+                    float rank = index.getRank();
+                    index.setRank(rank + 1);
+                    indexRepository.save(index);
+                }
+                else {
+                    addNewIndex(lemma);
+                    int frequency = lemma.getFrequency();
+                    lemma.setFrequency(frequency + 1);
+                    lemmaRepository.save(lemma);
+                }
+            continue;
             }
             addNewLemma(normalWord);
         }
@@ -98,6 +110,16 @@ public class LemmaFinder {
         lemma.setSite(page.getSite());
         lemma.setFrequency(1);
         lemmaRepository.save(lemma);
+
+        addNewIndex(lemma);
+    }
+
+    private void addNewIndex(Lemma lemma) {
+        Index index = new Index();
+        index.setLemma(lemma);
+        index.setPage(page);
+        index.setRank(1);
+        indexRepository.save(index);
     }
 
     private boolean anyWordBaseBeforeToParticle(List<String> wordBaseForms) {

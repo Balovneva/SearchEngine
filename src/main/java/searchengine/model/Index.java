@@ -6,7 +6,7 @@ import lombok.Setter;
 import javax.persistence.*;
 
 @Entity
-@Table(name = "index")
+@Table(name = "`index`")
 @Getter
 @Setter
 public class Index {
@@ -23,6 +23,6 @@ public class Index {
     @JoinColumn(name = "lemma_id")
     private Lemma lemma;
 
-    @Column(nullable = false)
+    @Column(name = "`rank`", nullable = false)
     private float rank;
 }
