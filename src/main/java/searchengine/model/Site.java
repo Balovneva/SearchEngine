@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import javax.persistence.*;
+import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
@@ -21,7 +22,7 @@ public class Site {
     private String status;
 
     @Column(name = "status_time", nullable = false)
-    private LocalDateTime statusTime;
+    private Timestamp statusTime;
 
     @Column(columnDefinition = "TEXT", name = "last_error")
     private String lastError;

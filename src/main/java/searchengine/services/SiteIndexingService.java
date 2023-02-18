@@ -11,6 +11,7 @@ import searchengine.repository.PageRepository;
 import searchengine.model.Site;
 import searchengine.repository.SiteRepository;
 
+import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -74,13 +75,13 @@ public class SiteIndexingService {
                         forkJoinPool.invoke(siteParser);
 
                         siteEntity.setStatus("INDEXED");
-                        siteEntity.setStatusTime(LocalDateTime.now());
+                        siteEntity.setStatusTime(new Timestamp(System.currentTimeMillis()));
                         siteRepository.save(siteEntity);
 
                     } catch (CancellationException ex) {
                         siteEntity.setStatus("FAILED");
                         siteEntity.setLastError("Ошибка индексации: " + ex.getMessage());
-                        siteEntity.setStatusTime(LocalDateTime.now());
+                        siteEntity.setStatusTime(new Timestamp(System.currentTimeMillis()));
                         siteRepository.save(siteEntity);
                     }
 
@@ -111,7 +112,7 @@ public class SiteIndexingService {
         siteRepository.findAll().forEach(siteEntity -> {
             siteEntity.setLastError("Индексация остановлена пользователем");
             siteEntity.setStatus("FAILED");
-            siteEntity.setStatusTime(LocalDateTime.now());
+            siteEntity.setStatusTime(new Timestamp(System.currentTimeMillis()));
             siteRepository.save(siteEntity);
         });
 
@@ -134,7 +135,7 @@ public class SiteIndexingService {
                         lemmaRepository, indexRepository);
                 siteParser.addAdditionalPage();
                 siteEntity.setStatus("INDEXED");
-                siteEntity.setStatusTime(LocalDateTime.now());
+                siteEntity.setStatusTime(new Timestamp(System.currentTimeMillis()));
                 siteRepository.save(siteEntity);
                 addPage.set(true);
 
@@ -147,7 +148,7 @@ public class SiteIndexingService {
                 siteEntity.setStatus("INDEXING");
                 siteParser.addAdditionalPage();
                 siteEntity.setStatus("INDEXED");
-                siteEntity.setStatusTime(LocalDateTime.now());
+                siteEntity.setStatusTime(new Timestamp(System.currentTimeMillis()));
                 siteRepository.save(siteEntity);
                 addPage.set(true);
             }
@@ -165,7 +166,7 @@ public class SiteIndexingService {
         Site siteEntity = new Site();
         siteEntity.setName(site.getName());
         siteEntity.setStatus("INDEXING");
-        siteEntity.setStatusTime(LocalDateTime.now());
+        siteEntity.setStatusTime(new Timestamp(System.currentTimeMillis()));
         siteEntity.setUrl(rootUrl);
         siteRepository.save(siteEntity);
         return siteEntity;

@@ -2,6 +2,8 @@ package searchengine.dto.statistics;
 
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
 @Data
 public class DetailedStatisticsItem {
     private String url;

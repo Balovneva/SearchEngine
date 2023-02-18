@@ -6,6 +6,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import searchengine.dto.statistics.StatisticsResponse;
+import searchengine.model.SearchResponse;
+import searchengine.repository.SiteRepository;
 import searchengine.services.SiteIndexingService;
 import searchengine.services.StatisticsService;
 
@@ -15,6 +17,9 @@ public class ApiController {
 
     @Autowired
     private SiteIndexingService siteIndexingService;
+
+    @Autowired
+    private SiteRepository siteRepository;
 
     private final StatisticsService statisticsService;
 
@@ -74,5 +79,27 @@ public class ApiController {
     @GetMapping("/statistics")
     public ResponseEntity<StatisticsResponse> statistics() {
         return ResponseEntity.ok(statisticsService.getStatistics());
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<String> search(@RequestParam String query,
+                                         @RequestParam String site,
+                                         @RequestParam(defaultValue = "0") int offset,
+                                         @RequestParam(defaultValue = "20") int limit) {
+        JSONObject response = new JSONObject();
+
+        if (query == null) {
+            response.put("result", false);
+            response.put("error", "Задан пустой поисковой запрос");
+
+            return new ResponseEntity<>(response.toString(), HttpStatus.OK);
+        }
+
+        if (siteRepository.findByUrl(site) == null) {
+            response.put("result", false);
+            response.put("error", "Указанная страница не найдена");
+        }
+
+        return new ResponseEntity<>(response.toString(), HttpStatus.OK);
     }
 }
