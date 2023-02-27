@@ -34,8 +34,8 @@ public class SiteIndexingService {
     @Autowired
     IndexRepository indexRepository;
 
-    List<Thread> threads = new ArrayList<>();
-    List<ForkJoinPool> forkJoinPools = new ArrayList<>();
+    private List<Thread> threads = new ArrayList<>();
+    private List<ForkJoinPool> forkJoinPools = new ArrayList<>();
 
     public boolean startIndexing() {
         AtomicBoolean indexing = new AtomicBoolean(false);
@@ -74,9 +74,13 @@ public class SiteIndexingService {
                         forkJoinPools.add(forkJoinPool);
                         forkJoinPool.invoke(siteParser);
 
-                        siteEntity.setStatus("INDEXED");
-                        siteEntity.setStatusTime(new Timestamp(System.currentTimeMillis()));
-                        siteRepository.save(siteEntity);
+//                        if (siteParser.getStopIndexing()) {
+//                            stopIndexingSetInfo(siteEntity);
+//                        } else {
+                            siteEntity.setStatus("INDEXED");
+                            siteEntity.setStatusTime(new Timestamp(System.currentTimeMillis()));
+                            siteRepository.save(siteEntity);
+
 
                     } catch (CancellationException ex) {
                         siteEntity.setStatus("FAILED");
@@ -95,6 +99,7 @@ public class SiteIndexingService {
     public boolean stopIndexing() {
 
         AtomicBoolean indexing = new AtomicBoolean(false);
+        //SiteParser.setStopIndexing(false);
 
         siteRepository.findAll().forEach(site -> {
             if (site.getStatus().equals("INDEXING")) {
@@ -106,14 +111,13 @@ public class SiteIndexingService {
             return true;
         }
 
+        //SiteParser.setStopIndexing(true);
+        forkJoinPools.forEach(ForkJoinPool::shutdownNow);
         forkJoinPools.forEach(ForkJoinPool::shutdownNow);
         threads.forEach(Thread::interrupt);
 
         siteRepository.findAll().forEach(siteEntity -> {
-            siteEntity.setLastError("Индексация остановлена пользователем");
-            siteEntity.setStatus("FAILED");
-            siteEntity.setStatusTime(new Timestamp(System.currentTimeMillis()));
-            siteRepository.save(siteEntity);
+            stopIndexingSetInfo(siteEntity);
         });
 
         threads.clear();
@@ -172,10 +176,18 @@ public class SiteIndexingService {
         return siteEntity;
     }
 
+    public void stopIndexingSetInfo(Site siteEntity) {
+        siteEntity.setLastError("Индексация остановлена пользователем");
+        siteEntity.setStatus("FAILED");
+        siteEntity.setStatusTime(new Timestamp(System.currentTimeMillis()));
+        siteRepository.save(siteEntity);
+    }
+
     public void clearData() {
         indexRepository.deleteAllInBatch();
         lemmaRepository.deleteAllInBatch();
         pageRepository.deleteAllInBatch();
         siteRepository.deleteAllInBatch();
+        //SiteParser.setStopIndexing(false);
     }
 }

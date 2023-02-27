@@ -71,7 +71,7 @@ public class StatisticsServiceImpl implements StatisticsService {
         data.setTotal(total);
         data.setDetailed(detailed);
         response.setStatistics(data);
-        response.setResult(total.isIndexing());
+        response.setResult(true);
         return response;
     }
 }

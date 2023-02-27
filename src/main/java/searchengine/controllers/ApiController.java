@@ -6,8 +6,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import searchengine.dto.statistics.StatisticsResponse;
-import searchengine.model.SearchResponse;
 import searchengine.repository.SiteRepository;
+import searchengine.services.SearchService;
 import searchengine.services.SiteIndexingService;
 import searchengine.services.StatisticsService;
 
@@ -17,6 +17,9 @@ public class ApiController {
 
     @Autowired
     private SiteIndexingService siteIndexingService;
+
+    @Autowired
+    private SearchService searchService;
 
     @Autowired
     private SiteRepository siteRepository;
@@ -51,12 +54,12 @@ public class ApiController {
 
         JSONObject response = new JSONObject();
 
-        if (stopIndexing) {
-            response.put("result", false);
-            response.put("error", "Индексация не запущена");
-        } else {
-            response.put("result", true);
-        }
+            if (stopIndexing) {
+                response.put("result", false);
+                response.put("error", "Индексация не запущена");
+            } else {
+                response.put("result", true);
+            }
 
         return new ResponseEntity<>(response.toString(), HttpStatus.OK);
     }
@@ -82,24 +85,21 @@ public class ApiController {
     }
 
     @GetMapping("/search")
-    public ResponseEntity<String> search(@RequestParam String query,
-                                         @RequestParam String site,
+    public ResponseEntity<?> search(@RequestParam(required = false) String query,
+                                         @RequestParam(required = false) String site,
                                          @RequestParam(defaultValue = "0") int offset,
                                          @RequestParam(defaultValue = "20") int limit) {
         JSONObject response = new JSONObject();
 
-        if (query == null) {
+        if (query == null || query.isBlank()) {
             response.put("result", false);
             response.put("error", "Задан пустой поисковой запрос");
 
             return new ResponseEntity<>(response.toString(), HttpStatus.OK);
         }
 
-        if (siteRepository.findByUrl(site) == null) {
-            response.put("result", false);
-            response.put("error", "Указанная страница не найдена");
-        }
 
-        return new ResponseEntity<>(response.toString(), HttpStatus.OK);
+        //return new ResponseEntity<>(response.toString(), HttpStatus.OK);
+        return ResponseEntity.ok(searchService.getSearchResults(query, site, offset, limit));
     }
 }

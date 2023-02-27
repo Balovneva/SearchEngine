@@ -26,9 +26,10 @@ public class SiteParser extends RecursiveTask<Integer> {
     private String page;
     private String siteName;
     private Site siteEntity;
-    private int pageCount; //ToDo: переменная не реализована
+    //private static boolean stopIndexing;
+    private int pageCount;
 
-    public static CopyOnWriteArraySet <String> allLinks = new CopyOnWriteArraySet<>(); //Todo: Зачем тут защита потока?
+    public static CopyOnWriteArraySet <String> allLinks = new CopyOnWriteArraySet<>();
     private static PageRepository pageRepository;
     private static LemmaRepository lemmaRepository;
     private static IndexRepository indexRepository;
@@ -58,6 +59,11 @@ public class SiteParser extends RecursiveTask<Integer> {
 
     @Override
     protected Integer compute() {
+
+//        if (stopIndexing) {
+//            return 0;
+//        }
+
         try {
             sleep(random());
             Connection.Response response = Jsoup.connect(page)
@@ -125,7 +131,7 @@ public class SiteParser extends RecursiveTask<Integer> {
 
         if (response.statusCode() < 400) {
             LemmaFinder lemmaFinder = new LemmaFinder(pageEntity, siteEntity, lemmaRepository, indexRepository);
-            lemmaFinder.collectLemmas();
+            lemmaFinder.addLemmasInBase();
         }
     }
 
@@ -149,5 +155,13 @@ public class SiteParser extends RecursiveTask<Integer> {
     public void clearListOfLinks() {
         allLinks.clear();
     }
+
+//    public static void setStopIndexing(boolean stopIndexing) {
+//        SiteParser.stopIndexing = stopIndexing;
+//    }
+//
+//    public boolean getStopIndexing() {
+//        return stopIndexing;
+//    }
 }
 
