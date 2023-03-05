@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -30,7 +31,7 @@ public class SiteIndexingService {
     @Autowired
     PageRepository pageRepository;
     @Autowired
-    LemmaRepository lemmaRepository; //ToDo: переброска репозиториев через класс-парсер, не оч. мб лучше?
+    LemmaRepository lemmaRepository;
     @Autowired
     IndexRepository indexRepository;
 
@@ -111,10 +112,9 @@ public class SiteIndexingService {
             return true;
         }
 
-        //SiteParser.setStopIndexing(true);
-        forkJoinPools.forEach(ForkJoinPool::shutdownNow);
         forkJoinPools.forEach(ForkJoinPool::shutdownNow);
         threads.forEach(Thread::interrupt);
+        SiteParser.setStopIndexing(true);
 
         siteRepository.findAll().forEach(siteEntity -> {
             stopIndexingSetInfo(siteEntity);
@@ -122,12 +122,14 @@ public class SiteIndexingService {
 
         threads.clear();
         forkJoinPools.clear();
+
         return false;
     }
 
     public boolean indexPage(String url) {
 
         AtomicBoolean addPage = new AtomicBoolean(false);
+        SiteParser.setStopIndexing(false);
 
         sitesList.getSites().forEach(site ->
         {
@@ -188,6 +190,6 @@ public class SiteIndexingService {
         lemmaRepository.deleteAllInBatch();
         pageRepository.deleteAllInBatch();
         siteRepository.deleteAllInBatch();
-        //SiteParser.setStopIndexing(false);
+        SiteParser.setStopIndexing(false);
     }
 }

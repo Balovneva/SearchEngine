@@ -26,7 +26,7 @@ public class SiteParser extends RecursiveTask<Integer> {
     private String page;
     private String siteName;
     private Site siteEntity;
-    //private static boolean stopIndexing;
+    private static boolean stopIndexing;
     private int pageCount;
 
     public static CopyOnWriteArraySet <String> allLinks = new CopyOnWriteArraySet<>();
@@ -60,9 +60,10 @@ public class SiteParser extends RecursiveTask<Integer> {
     @Override
     protected Integer compute() {
 
-//        if (stopIndexing) {
-//            return 0;
-//        }
+        if (stopIndexing) {
+            children.clear();
+            return 0;
+        }
 
         try {
             sleep(random());
@@ -156,12 +157,12 @@ public class SiteParser extends RecursiveTask<Integer> {
         allLinks.clear();
     }
 
-//    public static void setStopIndexing(boolean stopIndexing) {
-//        SiteParser.stopIndexing = stopIndexing;
-//    }
-//
-//    public boolean getStopIndexing() {
-//        return stopIndexing;
-//    }
+    public static void setStopIndexing(boolean stopIndexing) {
+        SiteParser.stopIndexing = stopIndexing;
+    }
+
+    public boolean getStopIndexing() {
+        return stopIndexing;
+    }
 }
 
