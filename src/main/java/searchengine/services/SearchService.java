@@ -3,18 +3,17 @@ package searchengine.services;
 import lombok.Getter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import searchengine.dto.search.DetailedSearchItem;
 import searchengine.dto.search.SearchResponse;
 import searchengine.lemmatizer.LemmaFinder;
 import searchengine.model.Index;
 import searchengine.model.Lemma;
-import searchengine.model.Site;
 import searchengine.repository.IndexRepository;
 import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
 import searchengine.repository.SiteRepository;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 @Getter
@@ -28,7 +27,7 @@ public class SearchService {
     @Autowired
     IndexRepository indexRepository;
 
-    private HashMap<String, Integer> lemmsFrequency = new HashMap<>();
+    private HashMap<String, Integer> lemmasFrequency = new HashMap<>();
 
     private static SearchResponse searchResponse;
 
@@ -81,35 +80,89 @@ public class SearchService {
 
         Map<Lemma, Integer> sortedLemmas = sortByValue(lemmas);
 
-        findPages(sortedLemmas);
+        List<Integer> pagesList = findPages(sortedLemmas);
 
     }
 
-    private void findPages(Map<Lemma, Integer> sortedLemmas) {
+    private List<Integer> findPages(Map<Lemma, Integer> sortedLemmas) {
 
         List<Integer> indexesFirstPage = new ArrayList<>();
 
         Lemma firstLemma = sortedLemmas.keySet().iterator().next();
 
-        indexRepository.findByLemma(firstLemma)
-                .forEach(index -> indexesFirstPage.add(index.getPage().getId()));
+        List<Index> indexes = indexRepository.findByLemma(firstLemma);
+
+        for (Index index : indexes) {
+            indexesFirstPage.add(index.getPage().getId());
+        }
 
         sortedLemmas.remove(firstLemma);
 
-        sortedLemmas.forEach(lemma -> {
-            indexRepository.findByLemma(lemma)
+        sortedLemmas.entrySet().forEach(lemma -> {
+
+            ArrayList<Integer> indexesAnotherPage = new ArrayList<>();
+
+            indexRepository.findByLemma(lemma.getKey())
                     .forEach(index -> {
                         int pageNumber = index.getPage().getId();
-                        if (!(indexesFirstPage.contains(pageNumber))) {
-                            indexesFirstPage.remove(pageNumber);
-                        }
+
+                        indexesAnotherPage.add(pageNumber);
                     });
+
+            for (int i = 0; i < indexesFirstPage.size(); i++) {
+                boolean flag = false;
+                int item = indexesFirstPage.get(i);
+                for (int j = 0; j < indexesAnotherPage.size(); j++) {
+                    if (item == indexesAnotherPage.get(j)) {
+                        flag = true;
+                    }
+                }
+                if (!flag) {
+                    indexesFirstPage.set(i, 0);
+                }
+            }
         });
 
-//        sortedLemmas.entrySet().stream().forEach(lemma -> {
-//            indexesFirstPage.addAll(indexRepository.findByLemma(lemma.getKey()));
-//        });
+        for (int i = indexesFirstPage.size() - 1; i >= 0; i--) {
+            if (indexesFirstPage.get(i) == 0) {
+                indexesFirstPage.remove(i);
+            }
+        }
+
+        System.out.println(indexesFirstPage.size());
+
+        indexesFirstPage.forEach(item -> {
+            System.out.print(item + " ");
+        });
+
+        return indexesFirstPage;
     }
+
+    public static void collectSearchItems(List<Integer> pagesList, Map<Lemma, Integer> sortedLemmas) {
+        if (pagesList.isEmpty()) {
+
+        }
+        // 1 2
+
+//        pagesList.forEach(page -> {
+//            DetailedSearchItem searchItem = new DetailedSearchItem();
+//            //searchItem.setSite();
+//            //pageRepository
+//
+//        });
+
+        for (int pageNumber : pagesList) {
+            DetailedSearchItem searchItem = new DetailedSearchItem();
+
+            searchItem.setSite();
+
+        }
+    }
+
+    //getTitle
+    //getSnippet
+    //calculateRelevance
+
 
     public static <K, V extends Comparable<? super V>> Map<K, V> sortByValue(Map<K, V> map) {
         List<Map.Entry<K, V>> list = new ArrayList<>(map.entrySet());

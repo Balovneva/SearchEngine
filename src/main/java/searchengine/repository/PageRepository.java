@@ -9,6 +9,8 @@ import searchengine.model.Site;
 public interface PageRepository extends JpaRepository<Page, Integer> {
     Page findByPath(String path);
 
+    Page findById(int id);
+
     int countBySite(Site site);
 
     long count();
