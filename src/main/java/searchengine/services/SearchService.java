@@ -1,6 +1,8 @@
 package searchengine.services;
 
 import lombok.Getter;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import searchengine.dto.search.DetailedSearchItem;
@@ -8,11 +10,13 @@ import searchengine.dto.search.SearchResponse;
 import searchengine.lemmatizer.LemmaFinder;
 import searchengine.model.Index;
 import searchengine.model.Lemma;
+import searchengine.model.Page;
 import searchengine.repository.IndexRepository;
 import searchengine.repository.LemmaRepository;
 import searchengine.repository.PageRepository;
 import searchengine.repository.SiteRepository;
 
+import java.io.IOException;
 import java.util.*;
 
 @Service
@@ -35,6 +39,7 @@ public class SearchService {
     private String site;
     private int offset;
     private int limit;
+    private int maxRelevance;
 
     public SearchResponse getSearchResults(String query, String site, int offset, int limit) {
 
@@ -81,6 +86,8 @@ public class SearchService {
         Map<Lemma, Integer> sortedLemmas = sortByValue(lemmas);
 
         List<Integer> pagesList = findPages(sortedLemmas);
+
+        collectSearchItems(pagesList, sortedLemmas);
 
     }
 
@@ -129,40 +136,80 @@ public class SearchService {
             }
         }
 
-        System.out.println(indexesFirstPage.size());
-
-        indexesFirstPage.forEach(item -> {
-            System.out.print(item + " ");
-        });
-
+        sortedLemmas.put(firstLemma, 0);
         return indexesFirstPage;
     }
 
-    public static void collectSearchItems(List<Integer> pagesList, Map<Lemma, Integer> sortedLemmas) {
-        if (pagesList.isEmpty()) {
+    public void collectSearchItems(List<Integer> pagesList, Map<Lemma, Integer> sortedLemmas) {
 
-        }
-        // 1 2
+        if (pagesList.isEmpty()) {}
 
-//        pagesList.forEach(page -> {
-//            DetailedSearchItem searchItem = new DetailedSearchItem();
-//            //searchItem.setSite();
-//            //pageRepository
-//
-//        });
+        HashMap<Integer, Double> relevance = getRelevance(pagesList, sortedLemmas);
 
         for (int pageNumber : pagesList) {
             DetailedSearchItem searchItem = new DetailedSearchItem();
 
-            searchItem.setSite();
-
+            Page page = pageRepository.findById(pageNumber);
+            searchItem.setSite(page.getSite().getUrl());
+            searchItem.setSiteName(page.getSite().getName());
+            searchItem.setUri(page.getPath());
+            searchItem.setTitle(getTitle(page.getPath()));
+            searchItem.setRelevance(relevance.get(pageNumber));
+            searchItem.setSnippet(getSnippet(page.getContent(), sortedLemmas));
         }
     }
 
-    //getTitle
-    //getSnippet
-    //calculateRelevance
+    private HashMap<Integer, Double> getRelevance(List<Integer> pagesList, Map<Lemma, Integer> sortedLemmas) {
 
+        HashMap<Integer, Double> relativeRelevance = new HashMap<>();
+        HashMap<Integer, Double> absolutelyRelevance = new HashMap<>();
+        Set<Lemma> lemmas = sortedLemmas.keySet();
+
+        for (int pageNumber : pagesList) {
+            Page page = pageRepository.findById(pageNumber);
+            double counter = 0;
+
+            for (Lemma lemma : lemmas) {
+                counter += indexRepository.findByPageAndLemma(page, lemma).getRank();
+            }
+
+            absolutelyRelevance.put(pageNumber, counter);
+        }
+
+        Map.Entry<Integer, Double> maxEntry = absolutelyRelevance.entrySet().stream()
+                .max(Comparator.comparing(Map.Entry::getValue))
+                .orElse(null);
+
+        double maxValue = maxEntry.getValue();
+
+        System.out.println("llll");
+
+        absolutelyRelevance.entrySet().forEach(it -> {
+            relativeRelevance.put(it.getKey(), it.getValue() / maxValue);
+        });
+
+        return relativeRelevance;
+    }
+
+    private String getSnippet(String content, Map<Lemma, Integer> sortedLemmas) {
+
+        StringBuilder stringBuilder = new StringBuilder();
+        Document doc = Jsoup.parse(content);
+        stringBuilder.append(doc.body().text());
+
+        return "";
+    }
+
+    private String getTitle(String uri) {
+        Document doc = null;
+        try {
+            doc = Jsoup.connect(uri).get();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        String title = doc.title();
+        return title;
+    }
 
     public static <K, V extends Comparable<? super V>> Map<K, V> sortByValue(Map<K, V> map) {
         List<Map.Entry<K, V>> list = new ArrayList<>(map.entrySet());
