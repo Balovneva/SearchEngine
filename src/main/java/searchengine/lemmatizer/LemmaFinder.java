@@ -10,9 +10,7 @@ import searchengine.repository.IndexRepository;
 import searchengine.repository.LemmaRepository;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 
 public class LemmaFinder {
 
@@ -23,9 +21,21 @@ public class LemmaFinder {
     private Page page;
     private Site site;
     private String query;
+    private Set<Lemma> sortedLemmas;
 
     public LemmaFinder(String query) {
         this.query = query;
+
+        try {
+            luceneMorphology = new RussianLuceneMorphology();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public LemmaFinder(String query, Set<Lemma> sortedLemmas) {
+        this.query = query;
+        this.sortedLemmas = sortedLemmas;
 
         try {
             luceneMorphology = new RussianLuceneMorphology();
@@ -51,22 +61,22 @@ public class LemmaFinder {
     private ArrayList<String> collectNormalWords() {
 
         String[] words;
+        ArrayList<String> lemmas = new ArrayList<>();
 
         if (page == null) {
             words = arrayContainsRussianWords(query);
         } else {
             words = arrayContainsRussianWords(page.getContent());
         }
-        ArrayList<String> lemmas = new ArrayList<>();
 
         for (String word : words) {
-
             if (word.isBlank()) {
                 continue;
             }
 
             List<String> wordBaseForms = luceneMorphology.getMorphInfo(word);
-            if(anyWordBaseBeforeToParticle(wordBaseForms)) {
+
+            if (anyWordBaseBeforeToParticle(wordBaseForms)) {
                 continue;
             }
 
@@ -81,6 +91,50 @@ public class LemmaFinder {
         return lemmas;
     }
 
+    public String[] collectWordsForSnippets() {
+
+        String[] words;
+        ArrayList<String> lemmas = new ArrayList<>();
+
+        sortedLemmas.forEach(lemma -> {
+            lemmas.add(lemma.getLemma());
+        });
+
+        words = query.split(" ");
+
+        for (int i = 0; i < words.length; i++) {
+
+            String word = words[i];
+
+            if (word.isBlank()) {
+                continue;
+            }
+
+            List<String> wordBaseForms = luceneMorphology.getMorphInfo(word);
+
+            if (anyWordBaseBeforeToParticle(wordBaseForms)) {
+                continue;
+            }
+
+            List<String> normalForms = luceneMorphology.getNormalForms(word);
+
+            if (normalForms.isEmpty()) {
+                continue;
+            }
+
+            String element = normalForms.get(0);
+
+            for (int j = 0; j < lemmas.size(); j++) {
+                if (element.equals(lemmas.get(j))) {
+                    words[i] = "<b>" + word + "/b>";
+                    break;
+                }
+            }
+        }
+
+        return words;
+    }
+
     public void addLemmasInBase() {
         collectNormalWords().forEach(normalWord -> {
             Lemma lemma = lemmaRepository.findByLemmaAndSite(normalWord, page.getSite());
@@ -91,8 +145,7 @@ public class LemmaFinder {
                     float rank = index.getRank();
                     index.setRank(rank + 1);
                     indexRepository.save(index);
-                }
-                else {
+                } else {
                     addNewIndex(lemma);
                     int frequency = lemma.getFrequency();
                     lemma.setFrequency(frequency + 1);

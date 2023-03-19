@@ -182,10 +182,12 @@ public class SearchService {
 
         double maxValue = maxEntry.getValue();
 
-        System.out.println("llll");
-
         absolutelyRelevance.entrySet().forEach(it -> {
-            relativeRelevance.put(it.getKey(), it.getValue() / maxValue);
+
+            int value = (int) ((it.getValue() / maxValue) * 100);
+            double result = value / 100.0;
+
+            relativeRelevance.put(it.getKey(), result);
         });
 
         return relativeRelevance;
@@ -193,9 +195,16 @@ public class SearchService {
 
     private String getSnippet(String content, Map<Lemma, Integer> sortedLemmas) {
 
+        Set<Lemma> lemmas = sortedLemmas.keySet();
         StringBuilder stringBuilder = new StringBuilder();
         Document doc = Jsoup.parse(content);
         stringBuilder.append(doc.body().text());
+
+        String text = String.valueOf(stringBuilder);
+
+        LemmaFinder lemmaFinder = new LemmaFinder(text, lemmas);
+
+        String[] array = lemmaFinder.collectWordsForSnippets();
 
         return "";
     }
