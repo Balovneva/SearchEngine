@@ -46,15 +46,16 @@ public class SearchService {
         HashMap<String, Integer> lemmas = new HashMap<>();
         LemmaFinder lemmaFinder = new LemmaFinder(query);
         ArrayList<String> words = lemmaFinder.getLemmasFromSearchQuery();
+        this.limit = limit;
 
         if (words != null) {
-            handleLemmasList(words, site);
+            return handleLemmasList(words, site);
         }
 
         return null;
     }
 
-    private void handleLemmasList(ArrayList<String> words, String site) {
+    private SearchResponse handleLemmasList(ArrayList<String> words, String site) {
 
         HashMap<Lemma, Integer> lemmas = new HashMap<>();
         int pages = (int) pageRepository.count();
@@ -87,8 +88,7 @@ public class SearchService {
 
         List<Integer> pagesList = findPages(sortedLemmas);
 
-        collectSearchItems(pagesList, sortedLemmas);
-
+        return collectSearchItems(pagesList, sortedLemmas);
     }
 
     private List<Integer> findPages(Map<Lemma, Integer> sortedLemmas) {
@@ -140,13 +140,25 @@ public class SearchService {
         return indexesFirstPage;
     }
 
-    public void collectSearchItems(List<Integer> pagesList, Map<Lemma, Integer> sortedLemmas) {
+    public SearchResponse collectSearchItems(List<Integer> pagesList, Map<Lemma, Integer> sortedLemmas) {
 
-        if (pagesList.isEmpty()) {}
+        SearchResponse searchResponse = new SearchResponse();
+
+        if (pagesList.isEmpty()) {
+            return null;
+        }
 
         HashMap<Integer, Double> relevance = getRelevance(pagesList, sortedLemmas);
+        int count = 0;
+        List<DetailedSearchItem> detailed = new ArrayList<>();
 
-        for (int pageNumber : pagesList) {
+        //for (int pageNumber : pagesList)
+
+        for (int i = 0; i < pagesList.size(); i++) {
+            if (i >= limit) {
+                break;
+            }
+            int pageNumber = pagesList.get(i);
             DetailedSearchItem searchItem = new DetailedSearchItem();
 
             Page page = pageRepository.findById(pageNumber);
@@ -156,7 +168,16 @@ public class SearchService {
             searchItem.setTitle(getTitle(page.getPath()));
             searchItem.setRelevance(relevance.get(pageNumber));
             searchItem.setSnippet(getSnippet(page.getContent(), sortedLemmas));
+
+            detailed.add(searchItem);
+            count++;
         }
+
+        searchResponse.setCount(count);
+        searchResponse.setData(detailed);
+        searchResponse.setResult(true);
+
+        return searchResponse;
     }
 
     private HashMap<Integer, Double> getRelevance(List<Integer> pagesList, Map<Lemma, Integer> sortedLemmas) {
@@ -206,7 +227,13 @@ public class SearchService {
 
         String[] array = lemmaFinder.collectWordsForSnippets();
 
-        return "";
+        stringBuilder.setLength(0);
+
+        for (int i = 0; i < array.length / 10; i++) {
+            stringBuilder.append(array[i] + " ");
+        }
+
+        return String.valueOf(stringBuilder);
     }
 
     private String getTitle(String uri) {

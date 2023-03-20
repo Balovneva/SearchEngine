@@ -101,10 +101,12 @@ public class LemmaFinder {
         });
 
         words = query.split(" ");
+        //words = arrayContainsRussianWords(query);
 
         for (int i = 0; i < words.length; i++) {
 
-            String word = words[i];
+            String parentWord = words[i];
+            String word = checkWord(parentWord);
 
             if (word.isBlank()) {
                 continue;
@@ -126,7 +128,7 @@ public class LemmaFinder {
 
             for (int j = 0; j < lemmas.size(); j++) {
                 if (element.equals(lemmas.get(j))) {
-                    words[i] = "<b>" + word + "/b>";
+                    words[i] = "<b>" + parentWord + "/b>";
                     break;
                 }
             }
@@ -199,4 +201,11 @@ public class LemmaFinder {
                 .trim()
                 .split("\\s+");
     }
+
+    private String checkWord(String word) {
+        return word.toLowerCase(Locale.ROOT)
+                .replaceAll("[^а-я]+", "")
+                .trim();
+    }
+
 }

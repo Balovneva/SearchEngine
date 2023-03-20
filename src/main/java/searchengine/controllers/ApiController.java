@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import searchengine.dto.search.SearchResponse;
 import searchengine.dto.statistics.StatisticsResponse;
 import searchengine.repository.SiteRepository;
 import searchengine.services.SearchService;
@@ -86,9 +87,9 @@ public class ApiController {
 
     @GetMapping("/search")
     public ResponseEntity<?> search(@RequestParam(required = false) String query,
-                                         @RequestParam(required = false) String site,
-                                         @RequestParam(defaultValue = "0") int offset,
-                                         @RequestParam(defaultValue = "20") int limit) {
+                                                 @RequestParam(required = false) String site,
+                                                 @RequestParam(defaultValue = "0") int offset,
+                                                 @RequestParam(defaultValue = "3") int limit) {
         JSONObject response = new JSONObject();
 
         if (query == null || query.isBlank()) {
@@ -98,8 +99,7 @@ public class ApiController {
             return new ResponseEntity<>(response.toString(), HttpStatus.OK);
         }
 
-
         //return new ResponseEntity<>(response.toString(), HttpStatus.OK);
-        return ResponseEntity.ok(searchService.getSearchResults(query, site, offset, limit));
+        return new ResponseEntity(searchService.getSearchResults(query, site, offset, limit), HttpStatus.OK);
     }
 }
