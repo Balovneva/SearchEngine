@@ -7,7 +7,6 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import searchengine.config.SitesList;
 import searchengine.lemmatizer.LemmaFinder;
-import searchengine.model.Lemma;
 import searchengine.model.Page;
 import searchengine.model.Site;
 import searchengine.repository.IndexRepository;
@@ -59,7 +58,6 @@ public class SiteParser extends RecursiveTask<Integer> {
 
     @Override
     protected Integer compute() {
-
         if (stopIndexing) {
             children.clear();
             return 0;
@@ -159,10 +157,6 @@ public class SiteParser extends RecursiveTask<Integer> {
 
     public static void setStopIndexing(boolean stopIndexing) {
         SiteParser.stopIndexing = stopIndexing;
-    }
-
-    public boolean getStopIndexing() {
-        return stopIndexing;
     }
 }
 

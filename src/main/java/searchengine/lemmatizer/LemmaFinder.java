@@ -35,17 +35,6 @@ public class LemmaFinder {
         }
     }
 
-    public LemmaFinder(String query, Set<Lemma> sortedLemmas) {
-        this.query = query;
-        this.sortedLemmas = sortedLemmas;
-
-        try {
-            luceneMorphology = new RussianLuceneMorphology();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
     public LemmaFinder(Page page, Site site, LemmaRepository lemmaRepository, IndexRepository indexRepository) {
 
         this.page = page;
@@ -138,7 +127,6 @@ public class LemmaFinder {
     }
 
     boolean anyWordBaseBeforeToParticle(List<String> wordBaseForms) {
-
         return hasParticleProperty(wordBaseForms.get(0));
     }
 

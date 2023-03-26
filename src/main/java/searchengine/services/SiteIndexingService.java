@@ -3,6 +3,7 @@ package searchengine.services;
 import lombok.Getter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import searchengine.model.Page;
 import searchengine.parsing.SiteParser;
 import searchengine.config.SitesList;
 import searchengine.repository.IndexRepository;
@@ -12,20 +13,15 @@ import searchengine.model.Site;
 import searchengine.repository.SiteRepository;
 
 import java.sql.Timestamp;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
 @Getter
 public class SiteIndexingService {
-
-    @Autowired
-    private SitesList sitesList;
     @Autowired
     SiteRepository siteRepository;
     @Autowired
@@ -34,6 +30,8 @@ public class SiteIndexingService {
     LemmaRepository lemmaRepository;
     @Autowired
     IndexRepository indexRepository;
+    @Autowired
+    private SitesList sitesList;
 
     private List<Thread> threads = new ArrayList<>();
     private List<ForkJoinPool> forkJoinPools = new ArrayList<>();
@@ -58,7 +56,6 @@ public class SiteIndexingService {
     public void addSites() {
         threads = new ArrayList<>();
         forkJoinPools = new ArrayList<>();
-
         clearData();
 
         sitesList.getSites()
@@ -69,38 +66,31 @@ public class SiteIndexingService {
                     SiteParser siteParser = new SiteParser(siteEntity.getUrl(),
                             siteEntity, sitesList, pageRepository,
                             lemmaRepository, indexRepository);
-
                     try {
                         ForkJoinPool forkJoinPool = new ForkJoinPool();
                         forkJoinPools.add(forkJoinPool);
                         forkJoinPool.invoke(siteParser);
+                        Page mainPage = pageRepository.findByPath(site.getUrl());
 
-//                        if (siteParser.getStopIndexing()) {
-//                            stopIndexingSetInfo(siteEntity);
-//                        } else {
-                            siteEntity.setStatus("INDEXED");
-                            siteEntity.setStatusTime(new Timestamp(System.currentTimeMillis()));
-                            siteRepository.save(siteEntity);
-
-
+                        if (mainPage.getPath().equals(site.getUrl())
+                                && mainPage.getCode() >= 400) {
+                            siteEntity.setLastError("Ошибка индексации: " + mainPage.getCode());
+                            setFailedStatus(siteEntity);
+                        } else {
+                            setIndexedStatus(siteEntity);
+                        }
                     } catch (CancellationException ex) {
-                        siteEntity.setStatus("FAILED");
                         siteEntity.setLastError("Ошибка индексации: " + ex.getMessage());
-                        siteEntity.setStatusTime(new Timestamp(System.currentTimeMillis()));
-                        siteRepository.save(siteEntity);
+                        setFailedStatus(siteEntity);
                     }
-
                     siteParser.clearListOfLinks();
                 })));
         threads.forEach(Thread::start);
-
         forkJoinPools.forEach(ForkJoinPool::shutdown);
     }
 
     public boolean stopIndexing() {
-
         AtomicBoolean indexing = new AtomicBoolean(false);
-        //SiteParser.setStopIndexing(false);
 
         siteRepository.findAll().forEach(site -> {
             if (site.getStatus().equals("INDEXING")) {
@@ -117,7 +107,8 @@ public class SiteIndexingService {
         SiteParser.setStopIndexing(true);
 
         siteRepository.findAll().forEach(siteEntity -> {
-            stopIndexingSetInfo(siteEntity);
+            siteEntity.setLastError("Индексация остановлена пользователем");
+            setFailedStatus(siteEntity);
         });
 
         threads.clear();
@@ -140,22 +131,17 @@ public class SiteIndexingService {
                         sitesList, pageRepository,
                         lemmaRepository, indexRepository);
                 siteParser.addAdditionalPage();
-                siteEntity.setStatus("INDEXED");
-                siteEntity.setStatusTime(new Timestamp(System.currentTimeMillis()));
-                siteRepository.save(siteEntity);
+                setIndexedStatus(siteEntity);
                 addPage.set(true);
 
-            }
-            else if (url.contains(site.getUrl())) {
+            } else if (url.contains(site.getUrl())) {
                 Site siteEntity = siteRepository.findByUrl(site.getUrl());
                 SiteParser siteParser = new SiteParser(url, siteEntity,
                         sitesList, pageRepository,
                         lemmaRepository, indexRepository);
                 siteEntity.setStatus("INDEXING");
                 siteParser.addAdditionalPage();
-                siteEntity.setStatus("INDEXED");
-                siteEntity.setStatusTime(new Timestamp(System.currentTimeMillis()));
-                siteRepository.save(siteEntity);
+                setIndexedStatus(siteEntity);
                 addPage.set(true);
             }
         });
@@ -178,8 +164,13 @@ public class SiteIndexingService {
         return siteEntity;
     }
 
-    public void stopIndexingSetInfo(Site siteEntity) {
-        siteEntity.setLastError("Индексация остановлена пользователем");
+    private void setIndexedStatus(Site siteEntity) {
+        siteEntity.setStatus("INDEXED");
+        siteEntity.setStatusTime(new Timestamp(System.currentTimeMillis()));
+        siteRepository.save(siteEntity);
+    }
+
+    private void setFailedStatus(Site siteEntity) {
         siteEntity.setStatus("FAILED");
         siteEntity.setStatusTime(new Timestamp(System.currentTimeMillis()));
         siteRepository.save(siteEntity);
@@ -192,4 +183,5 @@ public class SiteIndexingService {
         siteRepository.deleteAllInBatch();
         SiteParser.setStopIndexing(false);
     }
+
 }

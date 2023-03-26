@@ -18,7 +18,6 @@ public class KeywordFinder extends LemmaFinder{
     private ArrayList<Integer> keywords = new ArrayList<>();
 
     public KeywordFinder(String query, Set<Lemma> sortedLemmas) {
-        //super(query);
         this.query = query;
         this.sortedLemmas = sortedLemmas;
 

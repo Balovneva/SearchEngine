@@ -5,7 +5,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import searchengine.dto.search.SearchResponse;
 import searchengine.dto.statistics.StatisticsResponse;
 import searchengine.repository.SiteRepository;
 import searchengine.services.SearchService;
@@ -18,10 +17,8 @@ public class ApiController {
 
     @Autowired
     private SiteIndexingService siteIndexingService;
-
     @Autowired
     private SearchService searchService;
-
     @Autowired
     private SiteRepository siteRepository;
 
@@ -55,12 +52,12 @@ public class ApiController {
 
         JSONObject response = new JSONObject();
 
-            if (stopIndexing) {
-                response.put("result", false);
-                response.put("error", "Индексация не запущена");
-            } else {
-                response.put("result", true);
-            }
+        if (stopIndexing) {
+            response.put("result", false);
+            response.put("error", "Индексация не запущена");
+        } else {
+            response.put("result", true);
+        }
 
         return new ResponseEntity<>(response.toString(), HttpStatus.OK);
     }
@@ -87,9 +84,9 @@ public class ApiController {
 
     @GetMapping("/search")
     public ResponseEntity<?> search(@RequestParam(required = false) String query,
-                                                 @RequestParam(required = false) String site,
-                                                 @RequestParam(defaultValue = "0") int offset,
-                                                 @RequestParam(defaultValue = "3") int limit) {
+                                    @RequestParam(required = false) String site,
+                                    @RequestParam(defaultValue = "0") int offset,
+                                    @RequestParam(defaultValue = "3") int limit) {
         JSONObject response = new JSONObject();
 
         if (query == null || query.isBlank()) {
@@ -99,7 +96,6 @@ public class ApiController {
             return new ResponseEntity<>(response.toString(), HttpStatus.OK);
         }
 
-        //return new ResponseEntity<>(response.toString(), HttpStatus.OK);
         return new ResponseEntity(searchService.getSearchResults(query, site, offset, limit), HttpStatus.OK);
     }
 }
