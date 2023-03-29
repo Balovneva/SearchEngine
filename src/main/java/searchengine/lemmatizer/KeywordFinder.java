@@ -2,24 +2,22 @@ package searchengine.lemmatizer;
 
 import org.apache.lucene.morphology.LuceneMorphology;
 import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
-import searchengine.model.Lemma;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 
 public class KeywordFinder extends LemmaFinder{
 
     private static LuceneMorphology luceneMorphology;
-    private String query;
-    private Set<Lemma> sortedLemmas;
+    private String content;
+    private ArrayList<String> queryWords;
     private ArrayList<Integer> keywords = new ArrayList<>();
 
-    public KeywordFinder(String query, Set<Lemma> sortedLemmas) {
-        this.query = query;
-        this.sortedLemmas = sortedLemmas;
+    public KeywordFinder(String content, ArrayList<String> queryWords) {
+        this.content = content;
+        this.queryWords = queryWords;
 
         try {
             luceneMorphology = new RussianLuceneMorphology();
@@ -31,18 +29,12 @@ public class KeywordFinder extends LemmaFinder{
     public String[] collectWordsForSnippets() {
 
         String[] words;
-        ArrayList<String> lemmas = new ArrayList<>();
+        words = content.split(" ");
 
-        sortedLemmas.forEach(lemma -> {
-            lemmas.add(lemma.getLemma());
-        });
-
-        words = query.split(" ");
-
-        return findKeyWords(words, lemmas);
+        return findKeyWords(words, queryWords);
     }
 
-    private String[] findKeyWords(String[] words, ArrayList<String> lemmas) {
+    private String[] findKeyWords(String[] words, ArrayList<String> queryWords) {
         for (int i = 0; i < words.length; i++) {
 
             String parentWord = words[i];
@@ -66,8 +58,8 @@ public class KeywordFinder extends LemmaFinder{
 
             String element = normalForms.get(0);
 
-            for (int j = 0; j < lemmas.size(); j++) {
-                if (element.equals(lemmas.get(j))) {
+            for (int j = 0; j < queryWords.size(); j++) {
+                if (element.equals(queryWords.get(j))) {
                     words[i] = "<b>" + parentWord + "</b>";
                     keywords.add(i);
                     break;

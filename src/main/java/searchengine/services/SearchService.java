@@ -3,6 +3,7 @@ package searchengine.services;
 import lombok.Getter;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
+import org.jsoup.safety.Safelist;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import searchengine.dto.search.DetailedSearchItem;
@@ -20,6 +21,7 @@ import searchengine.repository.SiteRepository;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @Getter
@@ -35,20 +37,24 @@ public class SearchService {
 
     private SearchResponse searchResponse;
     private List<DetailedSearchItem> detailed;
+    HashMap<Integer, Double> relevance;
 
     private int offset;
     private int limit;
     private int count;
+    private int limitCounter;
 
     public SearchResponse getSearchResults(String query, String site, int offset, int limit) {
 
         this.limit = limit;
         this.offset = offset;
         this.count = 0;
+        this.limitCounter = 0;
 
         detailed = new ArrayList<>();
         LemmaFinder lemmaFinder = new LemmaFinder(query);
         ArrayList<String> words = lemmaFinder.getLemmasFromSearchQuery();
+        relevance = new HashMap<>();
 
         searchResponse = new SearchResponse();
         searchResponse.setResult(true);
@@ -59,10 +65,10 @@ public class SearchService {
             return searchResponse;
         }
 
-        return handleLemmasList(words, site);
+        return handleRequest(words, site);
     }
 
-    private SearchResponse handleLemmasList(ArrayList<String> words, String site) {
+    private SearchResponse handleRequest(ArrayList<String> words, String site) {
 
         List<Site> sites = new ArrayList<>();
 
@@ -72,39 +78,28 @@ public class SearchService {
             sites.add(siteRepository.findByUrl(site));
         }
 
-        sites.forEach(item -> {
-
-            HashMap<Lemma, Integer> lemmas = new HashMap<>();
-            int pages = pageRepository.countBySite(item);
-
-            words.forEach(word -> {
-                Lemma lemma = lemmaRepository.findByLemmaAndSite(word, item);
-                if (lemma == null) {
-                    return;
-                }
-                int wordFrequency = lemma.getFrequency();
-
-                if (wordFrequency < (0.8 * pages) && wordFrequency != 0) {
-                    lemmas.put(lemma, wordFrequency);
-                }
-            });
-
-            if (lemmas.isEmpty()) {
-                return;
-            }
-
-            Map<Lemma, Integer> sortedLemmas = sortByValue(lemmas);
-            List<Integer> pagesList = findPages(sortedLemmas);
-            collectSearchItems(pagesList, sortedLemmas);
-        });
+        handleSites(sites, words);
+        Map<Integer, Double> relevanceSorted = sortByValue(relevance);
+        List<Integer> pageToResponse = new ArrayList<>(relevanceSorted.keySet());
+        Collections.reverse(pageToResponse);
+        collectSearchItems(pageToResponse, words);
 
         sortByRelevance(detailed);
         getOffset();
-        searchResponse.setCount(count);
-        searchResponse.setData(detailed);
-        searchResponse.setResult(true);
 
-        return searchResponse;
+        return setDataInResponse();
+    }
+
+    private void handleSites(List<Site> sites, ArrayList<String> words) {
+        for (int i = 0; i < sites.size(); i++) {
+            HashMap<Lemma, Integer> lemmas = getLemmas(words, sites.get(i));
+            if (lemmas.isEmpty()) {
+                continue;
+            }
+            Map<Lemma, Integer> sortedLemmas = sortByValue(lemmas);
+            List<Integer> pagesList = findPages(sortedLemmas);
+            getRelevance(pagesList, sortedLemmas);
+        }
     }
 
     private List<Integer> findPages(Map<Lemma, Integer> sortedLemmas) {
@@ -152,13 +147,11 @@ public class SearchService {
         return indexesFirstPage;
     }
 
-    public void collectSearchItems(List<Integer> pagesList, Map<Lemma, Integer> sortedLemmas) {
+    public void collectSearchItems(List<Integer> pagesList, ArrayList<String> words) {
         if (pagesList.isEmpty()) { return; }
 
-        HashMap<Integer, Double> relevance = getRelevance(pagesList, sortedLemmas);
-
         for (int i = 0; i < pagesList.size(); i++) {
-            if (i >= limit) {
+            if (limitCounter >= limit) {
                 break;
             }
             int pageNumber = pagesList.get(i);
@@ -170,17 +163,15 @@ public class SearchService {
             searchItem.setUri(page.getPath());
             searchItem.setTitle(getTitle(page.getPath()));
             searchItem.setRelevance(relevance.get(pageNumber));
-            searchItem.setSnippet(getSnippet(page.getContent(), sortedLemmas));
+            searchItem.setSnippet(getSnippet(page.getContent(), words));
 
             detailed.add(searchItem);
+            limitCounter++;
             count++;
         }
     }
 
-    private HashMap<Integer, Double> getRelevance(List<Integer> pagesList, Map<Lemma, Integer> sortedLemmas) {
-
-        HashMap<Integer, Double> relativeRelevance = new HashMap<>();
-        HashMap<Integer, Double> absolutelyRelevance = new HashMap<>();
+    private void getRelevance(List<Integer> pagesList, Map<Lemma, Integer> sortedLemmas) {
         Set<Lemma> lemmas = sortedLemmas.keySet();
 
         for (int pageNumber : pagesList) {
@@ -191,35 +182,18 @@ public class SearchService {
                 counter += indexRepository.findByPageAndLemma(page, lemma).getRank();
             }
 
-            absolutelyRelevance.put(pageNumber, counter);
+            relevance.put(pageNumber, counter);
         }
-
-        Map.Entry<Integer, Double> maxEntry = absolutelyRelevance.entrySet().stream()
-                .max(Comparator.comparing(Map.Entry::getValue))
-                .orElse(null);
-
-        double maxValue = maxEntry.getValue();
-
-        absolutelyRelevance.entrySet().forEach(it -> {
-
-            int value = (int) ((it.getValue() / maxValue) * 100);
-            double result = value / 100.0;
-
-            relativeRelevance.put(it.getKey(), result);
-        });
-
-        return relativeRelevance;
     }
 
-    private String getSnippet(String content, Map<Lemma, Integer> sortedLemmas) {
-
-        Set<Lemma> lemmas = sortedLemmas.keySet();
+    private String getSnippet(String content, ArrayList<String> words) {
         StringBuilder stringBuilder = new StringBuilder();
-        Document doc = Jsoup.parse(content);
-        stringBuilder.append(doc.body().text());
+
+        String result = Jsoup.clean(content, Safelist.simpleText());
+        stringBuilder.append(result);
 
         String text = String.valueOf(stringBuilder);
-        KeywordFinder keywordFinder = new KeywordFinder(text, lemmas);
+        KeywordFinder keywordFinder = new KeywordFinder(text, words);
         String[] array = keywordFinder.collectWordsForSnippets();
         int keyword = keywordFinder.getKeyword();
 
@@ -252,6 +226,18 @@ public class SearchService {
         return stringBuilder;
     }
 
+    private SearchResponse setDataInResponse() {
+        searchResponse.setResult(true);
+        if (detailed.size() <= limit) {
+            searchResponse.setData(detailed);
+            searchResponse.setCount(detailed.size());
+        } else {
+            searchResponse.setCount(limit);
+            searchResponse.setData(detailed.subList(0, limit));
+        }
+        return searchResponse;
+    }
+
     private String getTitle(String uri) {
         Document doc = null;
         try {
@@ -269,6 +255,25 @@ public class SearchService {
                 detailed.remove(i);
             }
         }
+    }
+
+    private HashMap<Lemma, Integer> getLemmas(ArrayList<String> words, Site site) {
+        HashMap<Lemma, Integer> lemmas = new HashMap<>();
+
+        for (String word : words) {
+            Lemma lemma = lemmaRepository.findByLemmaAndSite(word, site);
+            if (lemma == null) {
+                break;
+            }
+            int wordFrequency = lemma.getFrequency();
+
+            //wordFrequency < (0.8 * pages) &&
+
+            if (wordFrequency != 0) {
+                lemmas.put(lemma, wordFrequency);
+            }
+        }
+        return lemmas;
     }
 
     public void sortByRelevance(List<DetailedSearchItem> list) {
