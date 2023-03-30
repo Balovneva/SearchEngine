@@ -12,12 +12,17 @@ public class KeywordFinder extends LemmaFinder{
 
     private static LuceneMorphology luceneMorphology;
     private String content;
+    private String mostRareLemma;
     private ArrayList<String> queryWords;
-    private ArrayList<Integer> keywords = new ArrayList<>();
+    private ArrayList<Integer> priorityKeywords;
+    private ArrayList<Integer> keywords;
 
-    public KeywordFinder(String content, ArrayList<String> queryWords) {
+    public KeywordFinder(String content, ArrayList<String> queryWords, String mostRareLemma) {
         this.content = content;
         this.queryWords = queryWords;
+        this.mostRareLemma = mostRareLemma;
+        this.priorityKeywords = new ArrayList<>();
+        this.keywords = new ArrayList<>();
 
         try {
             luceneMorphology = new RussianLuceneMorphology();
@@ -31,10 +36,10 @@ public class KeywordFinder extends LemmaFinder{
         String[] words;
         words = content.split(" ");
 
-        return findKeyWords(words, queryWords);
+        return findKeyWords(words);
     }
 
-    private String[] findKeyWords(String[] words, ArrayList<String> queryWords) {
+    private String[] findKeyWords(String[] words) {
         for (int i = 0; i < words.length; i++) {
 
             String parentWord = words[i];
@@ -61,7 +66,11 @@ public class KeywordFinder extends LemmaFinder{
             for (int j = 0; j < queryWords.size(); j++) {
                 if (element.equals(queryWords.get(j))) {
                     words[i] = "<b>" + parentWord + "</b>";
-                    keywords.add(i);
+                    if (element.equals(mostRareLemma)) {
+                        priorityKeywords.add(i);
+                    } else {
+                        keywords.add(i);
+                    }
                     break;
                 }
             }
@@ -77,6 +86,15 @@ public class KeywordFinder extends LemmaFinder{
     }
 
     public Integer getKeyword() {
-        return keywords.get((int)Math.random() * keywords.size());
+        int result = 0;
+        int value = 0;
+        if (!priorityKeywords.isEmpty()) {
+            value = (int) (Math.random() * priorityKeywords.size());
+            result = priorityKeywords.get(value);
+        } else {
+            value = (int) (Math.random() * keywords.size());
+            result = keywords.get(value);
+        }
+        return result;
     }
 }

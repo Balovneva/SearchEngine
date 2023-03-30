@@ -43,6 +43,7 @@ public class SearchService {
     private int limit;
     private int count;
     private int limitCounter;
+    private String mostRareLemma;
 
     public SearchResponse getSearchResults(String query, String site, int offset, int limit) {
 
@@ -106,6 +107,7 @@ public class SearchService {
 
         List<Integer> indexesFirstPage = new ArrayList<>();
         Lemma firstLemma = sortedLemmas.keySet().iterator().next();
+        mostRareLemma = firstLemma.getLemma();
         List<Index> indexes = indexRepository.findByLemma(firstLemma);
 
         for (Index index : indexes) {
@@ -149,6 +151,7 @@ public class SearchService {
 
     public void collectSearchItems(List<Integer> pagesList, ArrayList<String> words) {
         if (pagesList.isEmpty()) { return; }
+        ArrayList<String> titles = new ArrayList<>();
 
         for (int i = 0; i < pagesList.size(); i++) {
             if (limitCounter >= limit) {
@@ -161,7 +164,14 @@ public class SearchService {
             searchItem.setSite(page.getSite().getUrl());
             searchItem.setSiteName(page.getSite().getName());
             searchItem.setUri(page.getPath());
-            searchItem.setTitle(getTitle(page.getPath()));
+            String title = getTitle(page.getPath());
+
+            if (!titles.isEmpty() && titles.contains(title)) {
+                continue;
+            }
+
+            searchItem.setTitle(title);
+            titles.add(title);
             searchItem.setRelevance(relevance.get(pageNumber));
             searchItem.setSnippet(getSnippet(page.getContent(), words));
 
@@ -193,7 +203,7 @@ public class SearchService {
         stringBuilder.append(result);
 
         String text = String.valueOf(stringBuilder);
-        KeywordFinder keywordFinder = new KeywordFinder(text, words);
+        KeywordFinder keywordFinder = new KeywordFinder(text, words, mostRareLemma);
         String[] array = keywordFinder.collectWordsForSnippets();
         int keyword = keywordFinder.getKeyword();
 
@@ -206,12 +216,16 @@ public class SearchService {
         int start = 0;
         int digit = 0;
 
-        for (int i = keyword - 1;  i > 0; i--) {
+        for (int i = keyword - 1;  i >= 0; i--) {
             if (array[i].matches("[А-Я]{1}[а-я]+")) {
                 start = i + 28;
                 digit = i;
                 break;
             }
+        }
+
+        if (start == 0) {
+            start += 28;
         }
 
         if (start > array.length) {
