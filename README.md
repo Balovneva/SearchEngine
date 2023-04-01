@@ -29,19 +29,12 @@ Java v17.0.5
 
 
 <h3>Поиск</h3>
-<<<<<<< HEAD
-Можно выбрать искать по совпадения на конкретному сайте или на всех: 
-=======
+
 Можно выбрать искать по совпадения на конкретному сайте или на всех:
->>>>>>> 6a60eca (Config file add)
 
 ![04](https://user-images.githubusercontent.com/122821058/228916823-214768ba-8f70-4964-9c41-437947b24311.png)
 
 ![05](https://user-images.githubusercontent.com/122821058/228916879-7edcc0e9-9c25-45f5-b251-4adfe0c397cb.png)
 
 <h3>Инструкция по запуску приложения:</h3>
-<<<<<<< HEAD
   https://drive.google.com/file/d/1gFZb4TB-XmZGjnnhtCEOAFPL4WmPW5rO/view?usp=sharing
-=======
-https://drive.google.com/file/d/1gFZb4TB-XmZGjnnhtCEOAFPL4WmPW5rO/view?usp=sharing
->>>>>>> 6a60eca (Config file add)
