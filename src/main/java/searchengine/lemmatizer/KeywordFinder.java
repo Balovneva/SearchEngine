@@ -5,8 +5,10 @@ import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.CopyOnWriteArraySet;
 
 public class KeywordFinder extends LemmaFinder{
 
@@ -17,18 +19,20 @@ public class KeywordFinder extends LemmaFinder{
     private ArrayList<Integer> priorityKeywords;
     private ArrayList<Integer> keywords;
 
+    static {
+        try {
+            luceneMorphology = new RussianLuceneMorphology();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     public KeywordFinder(String content, ArrayList<String> queryWords, String mostRareLemma) {
         this.content = content;
         this.queryWords = queryWords;
         this.mostRareLemma = mostRareLemma;
         this.priorityKeywords = new ArrayList<>();
         this.keywords = new ArrayList<>();
-
-        try {
-            luceneMorphology = new RussianLuceneMorphology();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 
     public String[] collectWordsForSnippets() {
