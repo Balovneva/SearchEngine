@@ -16,18 +16,14 @@ public class LemmaFinder {
 
     private static LuceneMorphology luceneMorphology;
     private static final String[] particlesNames = new String[]{"МЕЖД", "ПРЕДЛ", "СОЮЗ", "МС-П", " МС "};
+
     private static LemmaRepository lemmaRepository;
     private static IndexRepository indexRepository;
     private Page page;
     private Site site;
     private String query;
-    private Set<Lemma> sortedLemmas;
 
-    public LemmaFinder(){}
-
-    public LemmaFinder(String query) {
-        this.query = query;
-
+    static {
         try {
             luceneMorphology = new RussianLuceneMorphology();
         } catch (IOException e) {
@@ -35,18 +31,17 @@ public class LemmaFinder {
         }
     }
 
-    public LemmaFinder(Page page, Site site, LemmaRepository lemmaRepository, IndexRepository indexRepository) {
+    public LemmaFinder(){}
 
+    public LemmaFinder(String query) {
+        this.query = query;
+    }
+
+    public LemmaFinder(Page page, Site site, LemmaRepository lemmaRepository, IndexRepository indexRepository) {
         this.page = page;
         this.site = site;
         LemmaFinder.lemmaRepository = lemmaRepository;
         LemmaFinder.indexRepository = indexRepository;
-
-        try {
-            luceneMorphology = new RussianLuceneMorphology();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 
     private ArrayList<String> collectNormalWords() {

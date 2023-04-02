@@ -23,16 +23,17 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Getter
 public class SiteIndexingService {
     @Autowired
-    SiteRepository siteRepository;
+    private SiteRepository siteRepository;
     @Autowired
-    PageRepository pageRepository;
+    private PageRepository pageRepository;
     @Autowired
-    LemmaRepository lemmaRepository;
+    private LemmaRepository lemmaRepository;
     @Autowired
-    IndexRepository indexRepository;
+    private IndexRepository indexRepository;
     @Autowired
     private SitesList sitesList;
 
+    private static final String INDEXING = "INDEXING";
     private List<Thread> threads = new ArrayList<>();
     private List<ForkJoinPool> forkJoinPools = new ArrayList<>();
 
@@ -40,7 +41,7 @@ public class SiteIndexingService {
         AtomicBoolean indexing = new AtomicBoolean(false);
 
         siteRepository.findAll().forEach(site -> {
-            if (site.getStatus().equals("INDEXING")) {
+            if (site.getStatus().equals(INDEXING)) {
                 indexing.set(true);
             }
         });
@@ -93,7 +94,7 @@ public class SiteIndexingService {
         AtomicBoolean indexing = new AtomicBoolean(false);
 
         siteRepository.findAll().forEach(site -> {
-            if (site.getStatus().equals("INDEXING")) {
+            if (site.getStatus().equals(INDEXING)) {
                 indexing.set(true);
             }
         });
@@ -139,25 +140,21 @@ public class SiteIndexingService {
                 SiteParser siteParser = new SiteParser(url, siteEntity,
                         sitesList, pageRepository,
                         lemmaRepository, indexRepository);
-                siteEntity.setStatus("INDEXING");
+                siteEntity.setStatus(INDEXING);
                 siteParser.addAdditionalPage();
                 setIndexedStatus(siteEntity);
                 addPage.set(true);
             }
         });
 
-        if (addPage.get()) {
-            return true;
-        } else {
-            return false;
-        }
+        return addPage.get();
     }
 
     public Site addSiteInRepository(searchengine.config.Site site) {
         String rootUrl = site.getUrl();
         Site siteEntity = new Site();
         siteEntity.setName(site.getName());
-        siteEntity.setStatus("INDEXING");
+        siteEntity.setStatus(INDEXING);
         siteEntity.setStatusTime(new Timestamp(System.currentTimeMillis()));
         siteEntity.setUrl(rootUrl);
         siteRepository.save(siteEntity);

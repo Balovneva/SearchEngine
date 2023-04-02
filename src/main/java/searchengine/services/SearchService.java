@@ -3,7 +3,6 @@ package searchengine.services;
 import lombok.Getter;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
-import org.jsoup.safety.Safelist;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import searchengine.dto.search.DetailedSearchItem;
@@ -21,23 +20,22 @@ import searchengine.repository.SiteRepository;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 @Getter
 public class SearchService {
     @Autowired
-    SiteRepository siteRepository;
+    private SiteRepository siteRepository;
     @Autowired
-    PageRepository pageRepository;
+    private PageRepository pageRepository;
     @Autowired
-    LemmaRepository lemmaRepository;
+    private LemmaRepository lemmaRepository;
     @Autowired
-    IndexRepository indexRepository;
+    private IndexRepository indexRepository;
 
     private SearchResponse searchResponse;
     private List<DetailedSearchItem> detailed;
-    HashMap<Integer, Double> relevance;
+    private HashMap<Integer, Double> relevance;
 
     private int offset;
     private int limit;
@@ -115,30 +113,7 @@ public class SearchService {
         }
 
         sortedLemmas.remove(firstLemma);
-        sortedLemmas.entrySet().forEach(lemma -> {
-
-            ArrayList<Integer> indexesAnotherPage = new ArrayList<>();
-
-            indexRepository.findByLemma(lemma.getKey())
-                    .forEach(index -> {
-                        int pageNumber = index.getPage().getId();
-
-                        indexesAnotherPage.add(pageNumber);
-                    });
-
-            for (int i = 0; i < indexesFirstPage.size(); i++) {
-                boolean flag = false;
-                int item = indexesFirstPage.get(i);
-                for (int j = 0; j < indexesAnotherPage.size(); j++) {
-                    if (item == indexesAnotherPage.get(j)) {
-                        flag = true;
-                    }
-                }
-                if (!flag) {
-                    indexesFirstPage.set(i, 0);
-                }
-            }
-        });
+        findMatchesWithRarePage(sortedLemmas, indexesFirstPage);
 
         for (int i = indexesFirstPage.size() - 1; i >= 0; i--) {
             if (indexesFirstPage.get(i) == 0) {
@@ -181,6 +156,33 @@ public class SearchService {
         }
     }
 
+    private void findMatchesWithRarePage(Map<Lemma, Integer> sortedLemmas, List<Integer> indexesFirstPage) {
+        sortedLemmas.entrySet().forEach(lemma -> {
+
+            ArrayList<Integer> indexesAnotherPage = new ArrayList<>();
+
+            indexRepository.findByLemma(lemma.getKey())
+                    .forEach(index -> {
+                        int pageNumber = index.getPage().getId();
+
+                        indexesAnotherPage.add(pageNumber);
+                    });
+
+            for (int i = 0; i < indexesFirstPage.size(); i++) {
+                boolean flag = false;
+                int item = indexesFirstPage.get(i);
+                for (int j = 0; j < indexesAnotherPage.size(); j++) {
+                    if (item == indexesAnotherPage.get(j)) {
+                        flag = true;
+                    }
+                }
+                if (!flag) {
+                    indexesFirstPage.set(i, 0);
+                }
+            }
+        });
+    }
+
     private void getRelevance(List<Integer> pagesList, Map<Lemma, Integer> sortedLemmas) {
         Set<Lemma> lemmas = sortedLemmas.keySet();
 
@@ -198,9 +200,8 @@ public class SearchService {
 
     private String getSnippet(String content, ArrayList<String> words) {
         StringBuilder stringBuilder = new StringBuilder();
-
-        String result = Jsoup.clean(content, Safelist.simpleText());
-        stringBuilder.append(result);
+        Document jsoupDoc = Jsoup.parse(content);
+        stringBuilder.append(jsoupDoc.body().text());
 
         String text = String.valueOf(stringBuilder);
         KeywordFinder keywordFinder = new KeywordFinder(text, words, mostRareLemma);
@@ -280,8 +281,6 @@ public class SearchService {
                 break;
             }
             int wordFrequency = lemma.getFrequency();
-
-            //wordFrequency < (0.8 * pages) &&
 
             if (wordFrequency != 0) {
                 lemmas.put(lemma, wordFrequency);
