@@ -48,15 +48,21 @@ public class KeywordFinder extends LemmaFinder{
             String parentWord = words[i];
             String word = checkWord(parentWord);
 
-            if (word.isBlank()) {continue;}
+            if (word.isBlank()) {
+                continue;
+            }
 
             List<String> wordBaseForms = luceneMorphology.getMorphInfo(word);
 
-            if (anyWordBaseBeforeToParticle(wordBaseForms)) {continue;}
+            if (anyWordBaseBeforeToParticle(wordBaseForms)) {
+                continue;
+            }
 
             List<String> normalForms = luceneMorphology.getNormalForms(word);
 
-            if (normalForms.isEmpty()) {continue;}
+            if (normalForms.isEmpty()) {
+                continue;
+            }
 
             String element = normalForms.get(0);
 

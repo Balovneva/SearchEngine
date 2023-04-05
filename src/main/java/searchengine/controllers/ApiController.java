@@ -5,8 +5,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import searchengine.dto.search.SearchResponse;
 import searchengine.dto.statistics.StatisticsResponse;
-import searchengine.repository.SiteRepository;
 import searchengine.services.SearchService;
 import searchengine.services.SiteIndexingService;
 import searchengine.services.StatisticsService;
@@ -19,8 +19,6 @@ public class ApiController {
     private SiteIndexingService siteIndexingService;
     @Autowired
     private SearchService searchService;
-    @Autowired
-    private SiteRepository siteRepository;
 
     private final StatisticsService statisticsService;
 
